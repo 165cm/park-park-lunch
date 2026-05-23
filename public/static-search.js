@@ -1,6 +1,7 @@
 const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map();
+const parkingCache = new Map();
 const REQUIRED_CAUTION =
   "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
 
@@ -37,6 +38,18 @@ function buildOverpassQuery({ lat, lng, radiusM }) {
       relation(around:${radius},${lat},${lng})["amenity"~"restaurant|fast_food|cafe|food_court"];
       node(around:${radius},${lat},${lng})["shop"~"convenience|bakery|deli|supermarket|greengrocer"];
       way(around:${radius},${lat},${lng})["shop"~"convenience|bakery|deli|supermarket|greengrocer"];
+      node(around:${radius},${lat},${lng})["amenity"="parking"];
+      way(around:${radius},${lat},${lng})["amenity"="parking"];
+    );
+    out center tags 80;
+  `;
+}
+
+function buildParkingOnlyQuery({ lat, lng, radiusM }) {
+  const radius = Math.min(radiusM ?? 1500, 2500);
+  return `
+    [out:json][timeout:12];
+    (
       node(around:${radius},${lat},${lng})["amenity"="parking"];
       way(around:${radius},${lat},${lng})["amenity"="parking"];
     );
@@ -244,6 +257,29 @@ export async function fetchStaticLunchSpots(query) {
   return value;
 }
 
+export async function fetchOsmParkingLots(query) {
+  const key = `parking:${cacheKey(query)}`;
+  const cached = parkingCache.get(key);
+  if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) return cached.value;
+
+  const body = new URLSearchParams({ data: buildParkingOnlyQuery(query) });
+  const response = await fetch(OVERPASS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body
+  });
+  if (!response.ok) throw new Error(`Overpass parking API error ${response.status}`);
+
+  const normalized = normalizeElements((await response.json()).elements);
+  const value = {
+    parkingLots: normalized.parkingLots,
+    message: `OSMから駐車場候補${normalized.parkingLots.length}件を補助取得しました。`
+  };
+  parkingCache.set(key, { createdAt: Date.now(), value });
+  return value;
+}
+
 export function clearStaticLunchSpotCache() {
   cache.clear();
+  parkingCache.clear();
 }

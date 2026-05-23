@@ -9,6 +9,6 @@ test("Google Maps support is configured through an environment-backed config end
   assert.match(server, /GOOGLE_MAPS_API_KEY/);
   assert.match(server, /\/api\/config/);
   assert.match(app, /loadGoogleMaps/);
-  assert.match(app, /Google Maps \/ 周辺候補ライブ取得/);
+  assert.match(app, /Google Maps \/ Places API店舗 \+ OSM駐車補助/);
   assert.doesNotMatch(app, /L\.map|tileLayer|地理院タイル/);
 });
