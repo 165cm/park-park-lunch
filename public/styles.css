@@ -184,7 +184,7 @@ button {
 
 .search-panel {
   display: grid;
-  gap: 12px;
+  gap: 9px;
 }
 
 label {
@@ -204,12 +204,29 @@ select {
   padding: 0 10px;
   background: #fff;
   color: var(--ink);
+  font-size: 14px;
 }
 
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.compact-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr) minmax(0, 0.9fr);
+  gap: 8px;
+}
+
+.compact-controls label {
+  min-width: 0;
+}
+
+.compact-controls input,
+.compact-controls select {
+  min-height: 40px;
+  padding: 0 8px;
 }
 
 .notice {
@@ -343,7 +360,7 @@ select {
 
 .spot-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
@@ -361,6 +378,7 @@ select {
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .empty {
@@ -477,6 +495,7 @@ select {
   .panel {
     border-left: 0;
     border-top: 1px solid var(--line);
+    padding: 12px;
   }
 
   .topbar {
@@ -494,6 +513,20 @@ select {
   }
 }
 
+@media (min-width: 881px) {
+  .search-panel {
+    gap: 12px;
+  }
+
+  .compact-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compact-controls label:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 520px) {
   .topbar {
     gap: 8px;
@@ -503,8 +536,23 @@ select {
     font-size: 16px;
   }
 
-  .field-row,
-  .spot-actions {
+  .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .compact-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr) minmax(0, 0.86fr);
+    gap: 7px;
+  }
+
+  .compact-controls input,
+  .compact-controls select {
+    min-height: 38px;
+    padding: 0 7px;
+    font-size: 13px;
+  }
+
+  .spot-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

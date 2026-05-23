@@ -1,10 +1,10 @@
-const CACHE_NAME = "park-park-lunch-v12";
+const CACHE_NAME = "park-park-lunch-v13";
 const APP_SHELL = [
   "./",
-  "styles.css?v=3",
+  "styles.css?v=4",
   "config.js?v=1",
   "static-search.js?v=1",
-  "app.js?v=12",
+  "app.js?v=13",
   "manifest.webmanifest",
   "icon.svg"
 ];

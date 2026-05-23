@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#14362f" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="styles.css?v=4" />
     <title>Park Park Lunch</title>
   </head>
   <body>
@@ -42,7 +42,7 @@
               地点入力
               <input id="locationInput" type="text" autocomplete="off" placeholder="東京駅 / 35.681,139.767" />
             </label>
-            <div class="field-row">
+            <div class="compact-controls">
               <label>
                 車両
                 <select id="vehicleType">
@@ -54,16 +54,16 @@
                 時刻
                 <input id="timeInput" type="time" />
               </label>
+              <label>
+                半径
+                <select id="radiusInput">
+                  <option value="1200">1.2km</option>
+                  <option value="2200" selected>2.2km</option>
+                  <option value="3500">3.5km</option>
+                  <option value="5000">5km</option>
+                </select>
+              </label>
             </div>
-            <label>
-              半径
-              <select id="radiusInput">
-                <option value="1200">1.2km</option>
-                <option value="2200" selected>2.2km</option>
-                <option value="3500">3.5km</option>
-                <option value="5000">5km</option>
-              </select>
-            </label>
             <button class="primary-button" type="submit">この場所で探す</button>
           </form>
 
@@ -102,6 +102,6 @@
     </div>
 
     <script src="config.js?v=1"></script>
-    <script type="module" src="app.js?v=12"></script>
+    <script type="module" src="app.js?v=13"></script>
   </body>
 </html>
