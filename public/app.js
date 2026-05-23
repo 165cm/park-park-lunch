@@ -1,7 +1,7 @@
-import { clearStaticLunchSpotCache, fetchStaticLunchSpots } from "./static-search.js?v=2";
+import { clearStaticLunchSpotCache, fetchStaticLunchSpots } from "./static-search.js?v=3";
 
 const DEFAULT_LOCATION = { lat: 35.681236, lng: 139.767125 };
-const DATA_VERSION = "2026-05-23-reset-1";
+const DATA_VERSION = "2026-05-24-distance-score-1";
 const LOCATION_ALIASES = new Map([
   ["東京駅", DEFAULT_LOCATION],
   ["丸の内", { lat: 35.6811, lng: 139.7659 }],

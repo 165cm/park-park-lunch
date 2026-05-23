@@ -118,6 +118,7 @@ function nearestParking(parkingLots, restaurant, maxMeters) {
 
 function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
   const distanceFromQueryM = Math.round(distanceMeters(requestedLocation, restaurant.location));
+  const distancePenalty = recommendationDistancePenalty(distanceFromQueryM);
   const hasNonLeavingPickup =
     restaurant.pickupTypes.includes("drive_through") || restaurant.pickupTypes.includes("curbside_pickup");
 
@@ -127,7 +128,7 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
       distanceFromQueryM,
       recommendedRank: "A",
       rankLabel: "車から受け取り",
-      score: 95,
+      score: 95 - distancePenalty * 0.8,
       confidence: 0.78,
       nearestParkingCandidate: {
         type: "not_required",
@@ -146,7 +147,7 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
       distanceFromQueryM,
       recommendedRank: "C",
       rankLabel: "近くに駐車場",
-      score: 68 - lot.distanceM / 30,
+      score: 68 - lot.distanceM / 30 - distancePenalty,
       confidence: 0.62,
       nearestParkingCandidate: {
         id: lot.id,
@@ -167,7 +168,7 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
       distanceFromQueryM,
       recommendedRank: "C",
       rankLabel: "店舗駐車場の可能性",
-      score: 64,
+      score: 64 - distancePenalty,
       confidence: 0.58,
       nearestParkingCandidate: {
         type: "on_site_parking",
@@ -186,11 +187,16 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
     distanceFromQueryM,
     recommendedRank: "CAUTION",
     rankLabel: "駐車未確認",
-    score: 10,
+    score: 10 - Math.min(10, distanceFromQueryM / 250),
     confidence: 0.35,
     nearestParkingCandidate: null,
     caution: `${REQUIRED_CAUTION} 近くに使えそうな駐車場所が見つからないため、駐車未確認として分けています。`
   };
+}
+
+function recommendationDistancePenalty(distanceM) {
+  if (distanceM <= 250) return 0;
+  return Math.min(28, (distanceM - 250) / 70);
 }
 
 export async function fetchStaticLunchSpots(query) {

@@ -115,6 +115,7 @@ function isManualDriveThrough(restaurant, manualDriveThroughPlaces) {
 function scoreRestaurant(restaurant, context) {
   const { requestedLocation, activeParkingMeters, parkingLots, manualDriveThroughPlaces } = context;
   const distanceFromQueryM = distanceMeters(requestedLocation, restaurant.location);
+  const distancePenalty = recommendationDistancePenalty(distanceFromQueryM);
   const pickupTypes = restaurant.pickupTypes ?? [];
   const canReceiveWithoutLeaving =
     pickupTypes.includes("drive_through") ||
@@ -126,7 +127,7 @@ function scoreRestaurant(restaurant, context) {
       ...baseSpot(restaurant, distanceFromQueryM),
       recommendedRank: "A",
       rankLabel: RANK_LABELS.A,
-      score: 95,
+      score: 95 - distancePenalty * 0.8,
       confidence: 0.86,
       nearestParkingCandidate: {
         type: "not_required",
@@ -145,7 +146,7 @@ function scoreRestaurant(restaurant, context) {
       ...baseSpot(restaurant, distanceFromQueryM),
       recommendedRank: "B",
       rankLabel: RANK_LABELS.B,
-      score: 82 - nearestActiveMeter.distanceM / 20,
+      score: 82 - nearestActiveMeter.distanceM / 20 - distancePenalty,
       confidence: 0.72,
       nearestParkingCandidate: buildParkingCandidate(nearestActiveMeter, "parking_meter"),
       caution: REQUIRED_CAUTION
@@ -158,7 +159,7 @@ function scoreRestaurant(restaurant, context) {
       ...baseSpot(restaurant, distanceFromQueryM),
       recommendedRank: "C",
       rankLabel: RANK_LABELS.C,
-      score: 68 - nearestLot.distanceM / 30,
+      score: 68 - nearestLot.distanceM / 30 - distancePenalty,
       confidence: 0.62,
       nearestParkingCandidate: buildParkingCandidate(nearestLot, "parking_lot"),
       caution: REQUIRED_CAUTION
@@ -170,7 +171,7 @@ function scoreRestaurant(restaurant, context) {
       ...baseSpot(restaurant, distanceFromQueryM),
       recommendedRank: "C",
       rankLabel: RANK_LABELS.C,
-      score: 64,
+      score: 64 - distancePenalty,
       confidence: 0.58,
       nearestParkingCandidate: buildParkingCandidate(restaurant, "on_site_parking"),
       caution: REQUIRED_CAUTION
@@ -181,11 +182,16 @@ function scoreRestaurant(restaurant, context) {
     ...baseSpot(restaurant, distanceFromQueryM),
     recommendedRank: "CAUTION",
     rankLabel: RANK_LABELS.CAUTION,
-    score: 10,
+    score: 10 - Math.min(10, distanceFromQueryM / 250),
     confidence: 0.35,
     nearestParkingCandidate: null,
     caution: `${REQUIRED_CAUTION} 近くに使えそうな駐車場所が見つからないため、駐車未確認として分けています。`
   };
+}
+
+function recommendationDistancePenalty(distanceM) {
+  if (distanceM <= 250) return 0;
+  return Math.min(28, (distanceM - 250) / 70);
 }
 
 function baseSpot(restaurant, distanceFromQueryM) {

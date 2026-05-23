@@ -99,7 +99,7 @@ test("B rank uses active parking meter zones only", () => {
     lng: 139.767125,
     radiusM: 1000,
     vehicleType: "standard",
-    time: "12:00"
+    time: "2026-05-25T12:00:00+09:00"
   });
 
   const bRank = response.safeSpots.find((spot) => spot.id === "meter_001");
@@ -127,6 +127,59 @@ test("C rank is used when only an unknown parking lot is nearby", () => {
   const spot = response.safeSpots.find((candidate) => candidate.id === "lot_001");
   assert.equal(spot.recommendedRank, "C");
   assert.equal(spot.nearestParkingCandidate.availability, "未確認");
+});
+
+test("recommendations prefer nearby candidates when parking quality is similar", () => {
+  const response = buildLunchSpotResponse(
+    {
+      ...data,
+      restaurants: [
+        {
+          id: "near_lot",
+          name: "近い駐車場近接店",
+          category: "restaurant",
+          location: { lat: 35.6816, lng: 139.7675 },
+          pickupTypes: ["takeout"],
+          estimatedStayMinutes: 12,
+          dataSources: ["test"]
+        },
+        {
+          id: "far_lot",
+          name: "遠い駐車場近接店",
+          category: "restaurant",
+          location: { lat: 35.69285, lng: 139.77045 },
+          pickupTypes: ["takeout"],
+          estimatedStayMinutes: 12,
+          dataSources: ["test"]
+        }
+      ],
+      parkingLots: [
+        {
+          id: "near_parking",
+          name: "近い店の駐車場",
+          location: { lat: 35.6818, lng: 139.7677 },
+          availability: "unknown"
+        },
+        {
+          id: "far_parking",
+          name: "遠い店の駐車場",
+          location: { lat: 35.69305, lng: 139.77065 },
+          availability: "unknown"
+        }
+      ],
+      parkingMeterZones: []
+    },
+    {
+      lat: 35.681236,
+      lng: 139.767125,
+      radiusM: 2200,
+      vehicleType: "standard",
+      time: "12:00"
+    }
+  );
+
+  assert.equal(response.safeSpots[0].id, "near_lot");
+  assert.ok(response.safeSpots[0].score > response.safeSpots[1].score);
 });
 
 test("C rank is used when OSM indicates on-site parking", () => {
