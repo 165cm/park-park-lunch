@@ -272,8 +272,6 @@ function spotCard(spot) {
   const parkingText = parking
     ? `${parking.name} / 徒歩${parking.walkingDistanceM}m / ${parking.availability}`
     : "近くの駐車場所は未確認";
-  const mapsTarget = parking?.location ?? spot.location;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsTarget.lat},${mapsTarget.lng}`;
   const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${spot.location.lat},${spot.location.lng}`;
   const pickupText = pickupLabels(spot.pickupTypes);
 
@@ -287,11 +285,9 @@ function spotCard(spot) {
       </div>
       <p>${escapeHtml(pickupText)}</p>
       <p>${escapeHtml(parkingText)}</p>
-      <p>${escapeHtml(spot.caution)}</p>
       <div class="spot-actions">
-        <button type="button" data-focus-spot="${spot.id}">地図</button>
-        <a href="${streetViewUrl}" target="_blank" rel="noreferrer">店前確認</a>
-        <a href="${mapsUrl}" target="_blank" rel="noreferrer">行き先</a>
+        <button type="button" data-focus-spot="${spot.id}">Google Map</button>
+        <a href="${streetViewUrl}" target="_blank" rel="noreferrer">店前を確認</a>
       </div>
     </article>
   `;
@@ -322,14 +318,7 @@ function renderMarkers() {
         position: state.location,
         map: state.map,
         title: "検索地点",
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: "#f8c35a",
-          fillOpacity: 1,
-          strokeColor: "#14362f",
-          strokeWeight: 3
-        }
+        icon: markerIcon("QUERY")
       })
     );
 
@@ -338,7 +327,8 @@ function renderMarkers() {
         position: spot.location,
         map: state.map,
         title: spot.name,
-        label: spot.recommendedRank === "CAUTION" ? "!" : spot.recommendedRank
+        icon: markerIcon(spot.recommendedRank),
+        label: markerLabel(spot.recommendedRank)
       });
       marker.spotId = spot.id;
       marker.addListener("click", () => openGoogleInfoWindow(marker, spot));
@@ -347,6 +337,43 @@ function renderMarkers() {
     return;
   }
 
+}
+
+function markerIcon(rank) {
+  const colors = {
+    QUERY: { fill: "#f8c35a", stroke: "#14362f" },
+    A: { fill: "#16845b", stroke: "#ffffff" },
+    B: { fill: "#1768a6", stroke: "#ffffff" },
+    C: { fill: "#b56a00", stroke: "#ffffff" },
+    CAUTION: { fill: "#b42318", stroke: "#ffffff" }
+  };
+  const color = colors[rank] ?? colors.CAUTION;
+  return {
+    path: "M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z",
+    fillColor: color.fill,
+    fillOpacity: 1,
+    strokeColor: color.stroke,
+    strokeWeight: 2,
+    scale: rank === "QUERY" ? 1.35 : 1.45,
+    anchor: new google.maps.Point(12, 22),
+    labelOrigin: new google.maps.Point(12, 9)
+  };
+}
+
+function markerLabel(rank) {
+  const text = {
+    QUERY: "●",
+    A: "車",
+    B: "P",
+    C: "P",
+    CAUTION: "?"
+  }[rank];
+  return {
+    text,
+    color: rank === "QUERY" ? "#14362f" : "#ffffff",
+    fontSize: rank === "A" ? "10px" : "12px",
+    fontWeight: "800"
+  };
 }
 
 function openGoogleInfoWindow(marker, spot) {
