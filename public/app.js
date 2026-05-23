@@ -762,10 +762,6 @@ function headingBetween(from, to) {
   return (toDegrees(Math.atan2(y, x)) + 360) % 360;
 }
 
-function toRadians(value) {
-  return (value * Math.PI) / 180;
-}
-
 function toDegrees(value) {
   return (value * 180) / Math.PI;
 }
