@@ -1,7 +1,7 @@
 import { clearStaticLunchSpotCache, fetchOsmParkingLots, fetchStaticLunchSpots } from "./static-search.js?v=4";
 
 const DEFAULT_LOCATION = { lat: 35.681236, lng: 139.767125 };
-const DATA_VERSION = "2026-05-24-parking-focused-chains-1";
+const DATA_VERSION = "2026-05-24-parking-focused-chains-2";
 const REQUIRED_CAUTION =
   "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
 const PARKING_FOCUSED_CHAIN_PATTERN =
@@ -469,7 +469,7 @@ function isParkingFocusedGooglePlace(place) {
   const name = place.displayName?.text ?? "";
   const types = place.types ?? [];
   if (types.includes("supermarket")) return true;
-  if (types.includes("convenience_store")) return PARKING_FOCUSED_CHAIN_PATTERN.test(name);
+  if (types.includes("convenience_store")) return true;
   if (types.includes("meal_takeaway") || types.includes("restaurant") || types.includes("cafe") || types.includes("bakery")) {
     return PARKING_FOCUSED_CHAIN_PATTERN.test(name);
   }
@@ -497,6 +497,7 @@ function vehicleFriendlyParkingHints(place) {
   const types = place.types ?? [];
   const name = place.displayName?.text ?? "";
   if (types.includes("supermarket")) return ["chain_parking_possible"];
+  if (types.includes("convenience_store")) return ["chain_parking_possible"];
   if (PARKING_FOCUSED_CHAIN_PATTERN.test(name)) return ["chain_parking_possible"];
   return [];
 }
