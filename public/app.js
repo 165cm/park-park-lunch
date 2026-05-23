@@ -21,7 +21,9 @@ const state = {
   currentData: null,
   infoWindow: null,
   geocoder: null,
-  requestId: 0
+  requestId: 0,
+  loadingTimer: null,
+  loadingStartedAt: 0
 };
 
 const elements = {
@@ -54,7 +56,7 @@ async function init() {
   bindEvents();
   watchSpeed();
   registerServiceWorker();
-  updateSpots();
+  setStatus("条件を設定して「この場所で探す」を押してください。", "idle");
 }
 
 async function resetStaleLocalData() {
@@ -154,7 +156,7 @@ function initGoogleMap() {
     clickableIcons: true
   });
   state.infoWindow = new google.maps.InfoWindow();
-  elements.mapCredit.textContent = "Google Maps / OSMライブ検索";
+  elements.mapCredit.textContent = "Google Maps / 周辺候補ライブ取得";
 }
 
 function scheduleGoogleAuthErrorNotice() {
@@ -209,7 +211,8 @@ function bindEvents() {
         setLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        });
+        }, true, { refresh: false });
+        setStatus("現在地を設定しました。条件を確認してから検索してください。", "active");
       },
       () => {
         setStatus("現在地を取得できませんでした。駅名・住所で検索してください。", "error");
@@ -221,8 +224,20 @@ function bindEvents() {
 
   elements.safeTab.addEventListener("click", () => switchTab("safe"));
   elements.cautionTab.addEventListener("click", () => switchTab("caution"));
-  elements.resultLimit.addEventListener("change", refreshVisibleResults);
-  elements.genreFilter.addEventListener("change", refreshVisibleResults);
+  bindChoiceGroup("vehicleTypeChoice", elements.vehicleType);
+  bindChoiceGroup("radiusChoice", elements.radiusInput);
+  bindChoiceGroup("resultLimitChoice", elements.resultLimit, refreshVisibleResults);
+  bindChoiceGroup("genreChoice", elements.genreFilter, refreshVisibleResults);
+}
+
+function bindChoiceGroup(name, targetInput, onChange) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) return;
+      targetInput.value = input.value;
+      onChange?.();
+    });
+  });
 }
 
 async function resolveLocationInput(value) {
@@ -353,7 +368,17 @@ function setLoading(isLoading, message) {
   elements.form.classList.toggle("is-loading", isLoading);
   elements.searchButton.disabled = isLoading;
   elements.locateButton.disabled = isLoading;
-  if (message) setStatus(message, "loading");
+  window.clearInterval(state.loadingTimer);
+  state.loadingTimer = null;
+  if (!isLoading) return;
+
+  state.loadingStartedAt = Date.now();
+  const update = () => {
+    const seconds = Math.floor((Date.now() - state.loadingStartedAt) / 1000);
+    setStatus(`${message} ${seconds}秒`, "loading");
+  };
+  update();
+  state.loadingTimer = window.setInterval(update, 1000);
 }
 
 function setStatus(message, mode = "active") {

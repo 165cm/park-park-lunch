@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#14362f" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=10" />
     <title>Park Park Lunch</title>
   </head>
   <body>
@@ -29,7 +29,7 @@
       <main class="workspace">
         <section class="map-pane" aria-label="ランチ候補マップ">
           <div id="map" class="map"></div>
-          <div class="map-credit" id="mapCredit">Google Maps / OSMライブ検索</div>
+          <div class="map-credit" id="mapCredit">Google Maps / 周辺候補ライブ取得</div>
         </section>
 
         <aside class="panel" aria-label="検索条件と候補一覧">
@@ -42,48 +42,52 @@
               <button id="locateButton" class="secondary-button" type="button">現在地</button>
             </div>
             <div class="compact-controls">
-              <label>
+              <div class="choice-field">
                 車両
-                <select id="vehicleType">
-                  <option value="standard">普通車</option>
-                  <option value="cargo">貨物車</option>
-                </select>
-              </label>
+                <input id="vehicleType" type="hidden" value="standard" />
+                <div class="chip-group" role="radiogroup" aria-label="車両">
+                  <label class="option-chip"><input type="radio" name="vehicleTypeChoice" value="standard" checked />普通車</label>
+                  <label class="option-chip"><input type="radio" name="vehicleTypeChoice" value="cargo" />貨物車</label>
+                </div>
+              </div>
               <label>
                 時刻
                 <input id="timeInput" type="time" />
               </label>
-              <label>
+              <div class="choice-field">
                 半径
-                <select id="radiusInput">
-                  <option value="1200">1.2km</option>
-                  <option value="2200" selected>2.2km</option>
-                  <option value="3500">3.5km</option>
-                  <option value="5000">5km</option>
-                </select>
-              </label>
+                <input id="radiusInput" type="hidden" value="2200" />
+                <div class="chip-group radius-group" role="radiogroup" aria-label="半径">
+                  <label class="option-chip"><input type="radio" name="radiusChoice" value="1200" />1.2km</label>
+                  <label class="option-chip"><input type="radio" name="radiusChoice" value="2200" checked />2.2km</label>
+                  <label class="option-chip"><input type="radio" name="radiusChoice" value="3500" />3.5km</label>
+                  <label class="option-chip"><input type="radio" name="radiusChoice" value="5000" />5km</label>
+                </div>
+              </div>
             </div>
             <div class="result-controls">
-              <label>
+              <div class="choice-field">
                 表示
-                <select id="resultLimit">
-                  <option value="5" selected>おすすめ5件</option>
-                  <option value="10">おすすめ10件</option>
-                  <option value="all">すべて</option>
-                </select>
-              </label>
-              <label>
+                <input id="resultLimit" type="hidden" value="5" />
+                <div class="chip-group" role="radiogroup" aria-label="表示">
+                  <label class="option-chip"><input type="radio" name="resultLimitChoice" value="5" checked />5件</label>
+                  <label class="option-chip"><input type="radio" name="resultLimitChoice" value="10" />10件</label>
+                  <label class="option-chip"><input type="radio" name="resultLimitChoice" value="all" />すべて</label>
+                </div>
+              </div>
+              <div class="choice-field">
                 ジャンル
-                <select id="genreFilter">
-                  <option value="all" selected>すべて</option>
-                  <option value="convenience">コンビニ</option>
-                  <option value="fast_food">ファストフード</option>
-                  <option value="cafe">カフェ</option>
-                  <option value="deli">弁当・惣菜</option>
-                  <option value="supermarket">スーパー</option>
-                  <option value="restaurant">飲食店</option>
-                </select>
-              </label>
+                <input id="genreFilter" type="hidden" value="all" />
+                <div class="chip-group genre-group" role="radiogroup" aria-label="ジャンル">
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="all" checked />すべて</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="convenience" />コンビニ</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="fast_food" />ファストフード</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="cafe" />カフェ</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="deli" />弁当・惣菜</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="supermarket" />スーパー</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="restaurant" />飲食店</label>
+                </div>
+              </div>
             </div>
             <button id="searchButton" class="primary-button" type="submit">この場所で探す</button>
           </form>
@@ -92,7 +96,7 @@
             ⚠️ 現地標識確認必須。本アプリは駐車許可を保証しません。🅿️ は近くの駐車候補、❔ は駐車未確認です。
           </div>
 
-          <div class="live-status" id="liveStatus" aria-live="polite">周辺のお店と駐車場を確認中</div>
+          <div class="live-status" id="liveStatus" aria-live="polite">条件を設定して「この場所で探す」を押してください。</div>
 
           <div class="tabs" role="tablist" aria-label="検索結果の種類">
             <button id="safeTab" type="button" class="tab tab-safe active" aria-selected="true">
@@ -117,6 +121,6 @@
     </div>
 
     <script src="config.js?v=1"></script>
-    <script type="module" src="app.js?v=19"></script>
+    <script type="module" src="app.js?v=21"></script>
   </body>
 </html>

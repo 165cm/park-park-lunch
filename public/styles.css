@@ -228,14 +228,23 @@ select {
 
 .compact-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 0.72fr);
   gap: 8px;
 }
 
 .result-controls {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.choice-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .compact-controls label {
@@ -251,6 +260,52 @@ select {
 
 .result-controls label {
   min-width: 0;
+}
+
+.chip-group {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  scrollbar-width: none;
+}
+
+.chip-group::-webkit-scrollbar {
+  display: none;
+}
+
+.radius-group,
+.genre-group {
+  grid-auto-flow: column;
+}
+
+.option-chip {
+  flex: 0 0 auto;
+  min-height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.option-chip:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+.option-chip input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .notice {
@@ -694,12 +749,8 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 
-  .compact-controls label:last-child {
-    grid-column: 1 / -1;
-  }
-
   .result-controls {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -717,7 +768,7 @@ select {
   }
 
   .compact-controls {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr) minmax(0, 0.86fr);
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 0.72fr);
     gap: 7px;
   }
 
