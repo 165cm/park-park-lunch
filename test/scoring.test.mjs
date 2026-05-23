@@ -213,7 +213,7 @@ test("required legal notice is present and forbidden guarantee copy is absent", 
   const corpus = files.map((file) => readFileSync(path.join(rootDir, file), "utf8")).join("\n");
   assert.match(corpus, /本アプリは駐車許可を保証しません/);
   assert.match(corpus, /停めやすい/);
-  assert.match(corpus, /店前を確認/);
+  assert.match(corpus, /道路を確認/);
   assert.match(corpus, /Google Map/);
   assert.match(notices.REQUIRED_CAUTION, /現地標識確認必須/);
   assert.doesNotMatch(corpus, /駐禁を取られない|停車OK保証|合法保証/);

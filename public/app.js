@@ -23,6 +23,8 @@ const state = {
   currentData: null,
   infoWindow: null,
   geocoder: null,
+  streetViewService: null,
+  streetViewUrlCache: new Map(),
   googleMapsApiKey: "",
   requestId: 0,
   loadingTimer: null,
@@ -160,6 +162,7 @@ function initGoogleMap() {
     clickableIcons: true
   });
   state.infoWindow = new google.maps.InfoWindow();
+  state.streetViewService = new google.maps.StreetViewService();
   elements.mapCredit.textContent = "Google Maps / Places API店舗 + OSM駐車補助";
 }
 
@@ -224,6 +227,30 @@ function bindEvents() {
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
+  });
+
+  elements.spotList.addEventListener("click", async (event) => {
+    const link = event.target.closest("[data-road-view]");
+    if (!link) return;
+    event.preventDefault();
+    const lat = Number.parseFloat(link.dataset.lat);
+    const lng = Number.parseFloat(link.dataset.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      window.open(link.href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const originalText = link.textContent;
+    link.textContent = "道路ビュー確認中";
+    link.setAttribute("aria-busy", "true");
+    try {
+      const url = await googleMapsRoadStreetViewUrl({ lat, lng });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      window.open(link.href, "_blank", "noopener,noreferrer");
+    } finally {
+      link.textContent = originalText;
+      link.removeAttribute("aria-busy");
+    }
   });
 
   elements.safeTab.addEventListener("click", () => switchTab("safe"));
@@ -651,7 +678,7 @@ function renderList() {
 function spotCard(spot) {
   const parking = spot.nearestParkingCandidate;
   const mapUrl = googleMapsPointUrl(spot);
-  const streetViewUrl = googleMapsStreetViewUrl(spot.location);
+  const streetViewUrl = googleMapsStreetViewFallbackUrl(spot.location);
   const pickupText = pickupLabels(spot.pickupTypes);
   const genreText = genreLabels()[spotGenre(spot)];
   const parkingText = parking
@@ -676,7 +703,7 @@ function spotCard(spot) {
       </div>
       <div class="spot-actions">
         <a href="${mapUrl}" target="_blank" rel="noreferrer">Google Map</a>
-        <a href="${streetViewUrl}" target="_blank" rel="noreferrer">店前を確認</a>
+        <a href="${streetViewUrl}" target="_blank" rel="noreferrer" data-road-view data-lat="${spot.location.lat}" data-lng="${spot.location.lng}">道路を確認</a>
       </div>
     </article>
   `;
@@ -689,8 +716,58 @@ function googleMapsPointUrl(spot) {
   return `https://www.google.com/maps/@${spot.location.lat},${spot.location.lng},18z`;
 }
 
-function googleMapsStreetViewUrl(location) {
+function googleMapsStreetViewFallbackUrl(location) {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${location.lat},${location.lng}`;
+}
+
+async function googleMapsRoadStreetViewUrl(location) {
+  const cacheKey = `${location.lat.toFixed(6)},${location.lng.toFixed(6)}`;
+  if (state.streetViewUrlCache.has(cacheKey)) return state.streetViewUrlCache.get(cacheKey);
+  if (!state.streetViewService || !window.google?.maps) return googleMapsStreetViewFallbackUrl(location);
+
+  const panorama = await nearestOutdoorPanorama(location);
+  const panoLatLng = panorama.location.latLng;
+  const heading = Math.round(headingBetween({ lat: panoLatLng.lat(), lng: panoLatLng.lng() }, location));
+  const url = `https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(panorama.location.pano)}&heading=${heading}`;
+  state.streetViewUrlCache.set(cacheKey, url);
+  return url;
+}
+
+function nearestOutdoorPanorama(location) {
+  return new Promise((resolve, reject) => {
+    state.streetViewService.getPanorama(
+      {
+        location,
+        radius: 120,
+        source: google.maps.StreetViewSource.OUTDOOR,
+        preference: google.maps.StreetViewPreference.NEAREST
+      },
+      (data, status) => {
+        if (status === google.maps.StreetViewStatus.OK && data?.location?.pano && data.location.latLng) {
+          resolve(data);
+          return;
+        }
+        reject(new Error("Street View panorama was not found"));
+      }
+    );
+  });
+}
+
+function headingBetween(from, to) {
+  const fromLat = toRadians(from.lat);
+  const toLat = toRadians(to.lat);
+  const deltaLng = toRadians(to.lng - from.lng);
+  const y = Math.sin(deltaLng) * Math.cos(toLat);
+  const x = Math.cos(fromLat) * Math.sin(toLat) - Math.sin(fromLat) * Math.cos(toLat) * Math.cos(deltaLng);
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360;
+}
+
+function toRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
+function toDegrees(value) {
+  return (value * 180) / Math.PI;
 }
 
 function genreLabels() {
