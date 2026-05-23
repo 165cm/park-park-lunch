@@ -1,0 +1,239 @@
+const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cache = new Map();
+const REQUIRED_CAUTION =
+  "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
+
+function distanceMeters(a, b) {
+  const earthRadiusM = 6371008.8;
+  const lat1 = toRadians(a.lat);
+  const lat2 = toRadians(b.lat);
+  const deltaLat = toRadians(b.lat - a.lat);
+  const deltaLng = toRadians(b.lng - a.lng);
+  const haversine =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
+  return 2 * earthRadiusM * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function toRadians(degrees) {
+  return (degrees * Math.PI) / 180;
+}
+
+function cacheKey(query) {
+  const lat = Math.round(query.lat * 1000) / 1000;
+  const lng = Math.round(query.lng * 1000) / 1000;
+  const radius = Math.min(query.radiusM ?? 1500, 2500);
+  return `${lat}:${lng}:${radius}`;
+}
+
+function buildOverpassQuery({ lat, lng, radiusM }) {
+  const radius = Math.min(radiusM ?? 1500, 2500);
+  return `
+    [out:json][timeout:12];
+    (
+      node(around:${radius},${lat},${lng})["amenity"~"restaurant|fast_food|cafe|food_court"];
+      way(around:${radius},${lat},${lng})["amenity"~"restaurant|fast_food|cafe|food_court"];
+      relation(around:${radius},${lat},${lng})["amenity"~"restaurant|fast_food|cafe|food_court"];
+      node(around:${radius},${lat},${lng})["shop"~"convenience|bakery|deli|supermarket|greengrocer"];
+      way(around:${radius},${lat},${lng})["shop"~"convenience|bakery|deli|supermarket|greengrocer"];
+      node(around:${radius},${lat},${lng})["amenity"="parking"];
+      way(around:${radius},${lat},${lng})["amenity"="parking"];
+    );
+    out center tags 80;
+  `;
+}
+
+function pointFromElement(element) {
+  const lat = element.lat ?? element.center?.lat;
+  const lng = element.lon ?? element.center?.lon;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+function pickupTypes(tags) {
+  const types = [];
+  if (tags.drive_through === "yes") types.push("drive_through");
+  if (tags.takeaway === "yes" || tags.takeaway === "only") types.push("takeout");
+  if (
+    tags.amenity === "fast_food" ||
+    tags.amenity === "food_court" ||
+    ["convenience", "bakery", "deli", "supermarket", "greengrocer"].includes(tags.shop)
+  ) {
+    types.push("takeout");
+  }
+  if (!types.length) types.push("eat_in");
+  return [...new Set(types)];
+}
+
+function parkingHints(tags) {
+  const hints = [];
+  if (["yes", "customers", "surface", "underground", "multi-storey"].includes(tags.parking)) hints.push("on_site");
+  return hints;
+}
+
+function normalizeElements(elements) {
+  const restaurants = [];
+  const parkingLots = [];
+
+  for (const element of elements ?? []) {
+    const tags = element.tags ?? {};
+    const location = pointFromElement(element);
+    if (!location) continue;
+
+    if (tags.amenity === "parking") {
+      parkingLots.push({
+        id: `osm_${element.type}_${element.id}`,
+        name: tags.name || "OSM時間貸駐車場候補",
+        location
+      });
+      continue;
+    }
+
+    restaurants.push({
+      id: `osm_${element.type}_${element.id}`,
+      name: tags.name || tags["name:ja"] || "名称未設定の候補",
+      category: tags.amenity ?? tags.shop ?? "food",
+      location,
+      pickupTypes: pickupTypes(tags),
+      parkingHints: parkingHints(tags),
+      estimatedStayMinutes: tags.amenity === "fast_food" || tags.shop ? 12 : 20,
+      dataSources: ["overpass_osm"],
+      sourceNote: "OpenStreetMap/Overpassのライブ取得データです。営業状況と受取方法は現地・店舗側で確認してください。"
+    });
+  }
+
+  return {
+    restaurants: restaurants.slice(0, 40),
+    parkingLots: parkingLots.slice(0, 60)
+  };
+}
+
+function nearestParking(parkingLots, restaurant, maxMeters) {
+  return parkingLots
+    .map((lot) => ({ ...lot, distanceM: distanceMeters(restaurant.location, lot.location) }))
+    .filter((lot) => lot.distanceM <= maxMeters)
+    .sort((a, b) => a.distanceM - b.distanceM)[0];
+}
+
+function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
+  const distanceFromQueryM = Math.round(distanceMeters(requestedLocation, restaurant.location));
+  const hasNonLeavingPickup =
+    restaurant.pickupTypes.includes("drive_through") || restaurant.pickupTypes.includes("curbside_pickup");
+
+  if (hasNonLeavingPickup) {
+    return {
+      ...restaurant,
+      distanceFromQueryM,
+      recommendedRank: "A",
+      rankLabel: "A: 非離車受取",
+      score: 95,
+      confidence: 0.78,
+      nearestParkingCandidate: {
+        type: "not_required",
+        name: "車外に出ない受取候補",
+        walkingDistanceM: 0,
+        availability: "店舗側対応要確認"
+      },
+      caution: REQUIRED_CAUTION
+    };
+  }
+
+  const lot = nearestParking(parkingLots, restaurant, 150);
+  if (lot) {
+    return {
+      ...restaurant,
+      distanceFromQueryM,
+      recommendedRank: "C",
+      rankLabel: "C: 近隣駐車場",
+      score: 68 - lot.distanceM / 30,
+      confidence: 0.62,
+      nearestParkingCandidate: {
+        id: lot.id,
+        type: "parking_lot",
+        name: lot.name,
+        location: lot.location,
+        walkingDistanceM: Math.round(lot.distanceM),
+        availability: "未確認",
+        note: "満空未確認。入庫前に現地表示と料金を確認してください。"
+      },
+      caution: REQUIRED_CAUTION
+    };
+  }
+
+  if (restaurant.parkingHints.includes("on_site")) {
+    return {
+      ...restaurant,
+      distanceFromQueryM,
+      recommendedRank: "C",
+      rankLabel: "C: 店舗駐車場タグ",
+      score: 64,
+      confidence: 0.58,
+      nearestParkingCandidate: {
+        type: "on_site_parking",
+        name: "店舗駐車場タグ候補",
+        location: restaurant.location,
+        walkingDistanceM: 0,
+        availability: "未確認",
+        note: "OSM上の店舗駐車場タグに基づく候補です。現地で利用可否を確認してください。"
+      },
+      caution: REQUIRED_CAUTION
+    };
+  }
+
+  return {
+    ...restaurant,
+    distanceFromQueryM,
+    recommendedRank: "CAUTION",
+    rankLabel: "注意候補",
+    score: 10,
+    confidence: 0.35,
+    nearestParkingCandidate: null,
+    caution: `${REQUIRED_CAUTION} 周辺にMVP基準内の駐車候補が見つからないため推奨リストから分離しています。`
+  };
+}
+
+export async function fetchStaticLunchSpots(query) {
+  const key = cacheKey(query);
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) return cached.value;
+
+  const body = new URLSearchParams({ data: buildOverpassQuery(query) });
+  const response = await fetch(OVERPASS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body
+  });
+  if (!response.ok) throw new Error(`Overpass API error ${response.status}`);
+
+  const normalized = normalizeElements((await response.json()).elements);
+  const requestedLocation = { lat: query.lat, lng: query.lng };
+  const spots = normalized.restaurants
+    .map((restaurant) => scoreRestaurant(restaurant, normalized.parkingLots, requestedLocation))
+    .sort((a, b) => b.score - a.score);
+
+  const value = {
+    query: { ...query, timezone: "Asia/Tokyo" },
+    generatedAt: new Date().toISOString(),
+    liveDataStatus: {
+      provider: "overpass_osm_static",
+      used: true,
+      message: `OpenStreetMapから飲食・テイクアウト候補${normalized.restaurants.length}件、駐車場候補${normalized.parkingLots.length}件を取得しました。`
+    },
+    policyNotice: REQUIRED_CAUTION,
+    dataSources: [
+      {
+        source: "overpass_osm",
+        label: "OpenStreetMap Overpass live search",
+        updatedAt: new Date().toISOString().slice(0, 10),
+        license: "ODbL",
+        productionReady: false
+      }
+    ],
+    safeSpots: spots.filter((spot) => spot.recommendedRank !== "CAUTION"),
+    cautionSpots: spots.filter((spot) => spot.recommendedRank === "CAUTION")
+  };
+
+  cache.set(key, { createdAt: Date.now(), value });
+  return value;
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Park Park Lunch">
+  <rect width="512" height="512" rx="96" fill="#14362f"/>
+  <path d="M142 118h166c70 0 116 41 116 104 0 64-46 106-116 106h-62v66H142V118z" fill="#f8c35a"/>
+  <path d="M246 202v43h52c18 0 31-8 31-22 0-13-13-21-31-21h-52z" fill="#14362f"/>
+  <path d="M126 394h260v38H126z" fill="#fff"/>
+</svg>

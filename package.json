@@ -1,0 +1,14 @@
+{
+  "name": "park-park-lunch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "start:static": "npx serve public",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
