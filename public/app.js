@@ -386,16 +386,16 @@ async function fetchGoogleLunchSpots(query) {
 
 async function fetchGooglePlacesRestaurants(query) {
   const types = googlePlaceSearchTypes(elements.genreFilter.value);
-  const results = await Promise.all(types.map((type) => nearbySearchNew(query, type)));
+  const results = await nearbySearchNew(query, types);
   const deduped = new Map();
-  for (const place of results.flat()) {
+  for (const place of results) {
     if (!place.id || !place.location || place.businessStatus === "CLOSED_PERMANENTLY") continue;
     deduped.set(place.id, place);
   }
   return [...deduped.values()].map(toGoogleRestaurant).slice(0, 40);
 }
 
-async function nearbySearchNew(query, includedType) {
+async function nearbySearchNew(query, includedTypes) {
   if (!state.googleMapsApiKey) throw new Error("Google Places API key is unavailable");
   const response = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
     method: "POST",
@@ -405,7 +405,7 @@ async function nearbySearchNew(query, includedType) {
       "X-Goog-FieldMask": "places.id,places.displayName,places.location,places.types,places.businessStatus"
     },
     body: JSON.stringify({
-      includedTypes: [includedType],
+      includedTypes,
       maxResultCount: 20,
       rankPreference: "DISTANCE",
       locationRestriction: {
