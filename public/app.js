@@ -1,6 +1,7 @@
-import { fetchStaticLunchSpots } from "./static-search.js?v=1";
+import { clearStaticLunchSpotCache, fetchStaticLunchSpots } from "./static-search.js?v=2";
 
 const DEFAULT_LOCATION = { lat: 35.681236, lng: 139.767125 };
+const DATA_VERSION = "2026-05-23-reset-1";
 const LOCATION_ALIASES = new Map([
   ["東京駅", DEFAULT_LOCATION],
   ["丸の内", { lat: 35.6811, lng: 139.7659 }],
@@ -47,12 +48,35 @@ const elements = {
 };
 
 async function init() {
+  await resetStaleLocalData();
   elements.timeInput.value = currentTimeValue();
   await initMap();
   bindEvents();
   watchSpeed();
   registerServiceWorker();
   updateSpots();
+}
+
+async function resetStaleLocalData() {
+  const storageKey = "parkParkLunchDataVersion";
+  let previousVersion = null;
+  try {
+    previousVersion = window.localStorage?.getItem(storageKey);
+  } catch {
+    previousVersion = null;
+  }
+  if (previousVersion === DATA_VERSION) return;
+
+  clearStaticLunchSpotCache();
+  state.currentData = null;
+  try {
+    window.localStorage?.setItem(storageKey, DATA_VERSION);
+  } catch {
+  }
+
+  if (!("caches" in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((key) => key.startsWith("park-park-lunch-")).map((key) => caches.delete(key)));
 }
 
 function currentTimeValue() {

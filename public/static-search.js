@@ -237,3 +237,7 @@ export async function fetchStaticLunchSpots(query) {
   cache.set(key, { createdAt: Date.now(), value });
   return value;
 }
+
+export function clearStaticLunchSpotCache() {
+  cache.clear();
+}
