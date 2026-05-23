@@ -121,7 +121,7 @@ function initGoogleMap() {
     zoom: 14,
     zoomControl: true,
     zoomControlOptions: {
-      position: google.maps.ControlPosition.RIGHT_BOTTOM
+      position: google.maps.ControlPosition.RIGHT_TOP
     },
     mapTypeControl: false,
     streetViewControl: false,
