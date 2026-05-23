@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#14362f" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=5" />
+    <link rel="stylesheet" href="styles.css?v=6" />
     <title>Park Park Lunch</title>
   </head>
   <body>
@@ -63,6 +63,28 @@
                 </select>
               </label>
             </div>
+            <div class="result-controls">
+              <label>
+                表示
+                <select id="resultLimit">
+                  <option value="5" selected>おすすめ5件</option>
+                  <option value="10">おすすめ10件</option>
+                  <option value="all">すべて</option>
+                </select>
+              </label>
+              <label>
+                ジャンル
+                <select id="genreFilter">
+                  <option value="all" selected>すべて</option>
+                  <option value="convenience">コンビニ</option>
+                  <option value="fast_food">ファストフード</option>
+                  <option value="cafe">カフェ</option>
+                  <option value="deli">弁当・惣菜</option>
+                  <option value="supermarket">スーパー</option>
+                  <option value="restaurant">飲食店</option>
+                </select>
+              </label>
+            </div>
             <button id="searchButton" class="primary-button" type="submit">この場所で探す</button>
           </form>
 
@@ -95,6 +117,6 @@
     </div>
 
     <script src="config.js?v=1"></script>
-    <script type="module" src="app.js?v=14"></script>
+    <script type="module" src="app.js?v=15"></script>
   </body>
 </html>

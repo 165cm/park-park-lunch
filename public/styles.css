@@ -232,14 +232,25 @@ select {
   gap: 8px;
 }
 
+.result-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 8px;
+}
+
 .compact-controls label {
   min-width: 0;
 }
 
 .compact-controls input,
-.compact-controls select {
+.compact-controls select,
+.result-controls select {
   min-height: 40px;
   padding: 0 8px;
+}
+
+.result-controls label {
+  min-width: 0;
 }
 
 .notice {
@@ -427,6 +438,11 @@ select {
 .badge.warning {
   background: #fff0d4;
   color: #7a4600;
+}
+
+.badge.neutral {
+  background: #eef2f0;
+  color: #41504c;
 }
 
 .rank-CAUTION .badge.warning {
@@ -661,6 +677,10 @@ select {
   .compact-controls label:last-child {
     grid-column: 1 / -1;
   }
+
+  .result-controls {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 520px) {
@@ -682,7 +702,8 @@ select {
   }
 
   .compact-controls input,
-  .compact-controls select {
+  .compact-controls select,
+  .result-controls select {
     min-height: 38px;
     padding: 0 7px;
     font-size: 13px;

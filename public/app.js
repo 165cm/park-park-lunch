@@ -29,6 +29,8 @@ const elements = {
   vehicleType: document.querySelector("#vehicleType"),
   timeInput: document.querySelector("#timeInput"),
   radiusInput: document.querySelector("#radiusInput"),
+  resultLimit: document.querySelector("#resultLimit"),
+  genreFilter: document.querySelector("#genreFilter"),
   locateButton: document.querySelector("#locateButton"),
   searchButton: document.querySelector("#searchButton"),
   safeTab: document.querySelector("#safeTab"),
@@ -191,6 +193,8 @@ function bindEvents() {
 
   elements.safeTab.addEventListener("click", () => switchTab("safe"));
   elements.cautionTab.addEventListener("click", () => switchTab("caution"));
+  elements.resultLimit.addEventListener("change", refreshVisibleResults);
+  elements.genreFilter.addEventListener("change", refreshVisibleResults);
 }
 
 async function resolveLocationInput(value) {
@@ -290,8 +294,7 @@ async function updateSpots() {
   }
   if (requestId !== state.requestId) return;
 
-  elements.safeCount.textContent = String(state.currentData.safeSpots.length);
-  elements.cautionCount.textContent = String(state.currentData.cautionSpots.length);
+  updateResultCounts();
   const liveStatus = state.currentData.liveDataStatus;
   setStatus(liveStatus?.message ?? "周辺のお店と駐車場を取得しました。", liveStatus?.used ? "active" : "error");
   setLoading(false);
@@ -338,16 +341,48 @@ function switchTab(tab) {
   elements.cautionTab.classList.toggle("active", tab === "caution");
   elements.safeTab.setAttribute("aria-selected", String(tab === "safe"));
   elements.cautionTab.setAttribute("aria-selected", String(tab === "caution"));
+  refreshVisibleResults();
+}
+
+function refreshVisibleResults() {
+  if (!state.currentData) return;
+  updateResultCounts();
   renderList();
+  renderMarkers();
+}
+
+function filteredSpots(tab) {
+  const data = state.currentData;
+  if (!data) return [];
+  const source = tab === "safe" ? data.safeSpots : data.cautionSpots;
+  const genre = elements.genreFilter.value;
+  const filtered = genre === "all" ? source : source.filter((spot) => spotGenre(spot) === genre);
+  const sorted = [...filtered].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const limit = elements.resultLimit.value;
+  return limit === "all" ? sorted : sorted.slice(0, Number.parseInt(limit, 10));
+}
+
+function updateResultCounts() {
+  elements.safeCount.textContent = String(filteredSpots("safe").length);
+  elements.cautionCount.textContent = String(filteredSpots("caution").length);
+}
+
+function spotGenre(spot) {
+  const category = spot.category ?? "";
+  if (category === "convenience") return "convenience";
+  if (category === "fast_food" || spot.pickupTypes?.includes("drive_through")) return "fast_food";
+  if (category === "cafe") return "cafe";
+  if (category === "deli" || category === "bakery" || category === "greengrocer") return "deli";
+  if (category === "supermarket") return "supermarket";
+  return "restaurant";
 }
 
 function renderList() {
-  const data = state.currentData;
-  if (!data) return;
-  const spots = state.selectedTab === "safe" ? data.safeSpots : data.cautionSpots;
+  if (!state.currentData) return;
+  const spots = filteredSpots(state.selectedTab);
 
   if (!spots.length) {
-    elements.spotList.innerHTML = `<div class="empty">この条件で表示できるお店がありません</div>`;
+    elements.spotList.innerHTML = `<div class="empty">この条件で表示できる候補がありません</div>`;
     return;
   }
 
@@ -357,8 +392,9 @@ function renderList() {
 function spotCard(spot) {
   const parking = spot.nearestParkingCandidate;
   const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${spot.location.lat},${spot.location.lng}`;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${spot.location.lat},${spot.location.lng}`;
+  const mapUrl = googleMapsPlaceSearchUrl(spot);
   const pickupText = pickupLabels(spot.pickupTypes);
+  const genreText = genreLabels()[spotGenre(spot)];
   const parkingText = parking
     ? `🅿️ 徒歩${parking.walkingDistanceM}m ${parking.availability}`
     : "❔ 駐車未確認";
@@ -369,6 +405,7 @@ function spotCard(spot) {
       <h2>${escapeHtml(spot.name)}</h2>
       <div class="spot-meta">
         <span class="badge">${escapeHtml(spot.rankLabel)}</span>
+        <span class="badge neutral">${escapeHtml(genreText)}</span>
         <span class="badge distance">📍 ${spot.distanceFromQueryM}m</span>
         <span class="badge warning">信頼度 ${Math.round(spot.confidence * 100)}%</span>
       </div>
@@ -382,6 +419,22 @@ function spotCard(spot) {
       </div>
     </article>
   `;
+}
+
+function googleMapsPlaceSearchUrl(spot) {
+  const query = `${spot.name} ${spot.location.lat},${spot.location.lng}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function genreLabels() {
+  return {
+    convenience: "コンビニ",
+    fast_food: "ファストフード",
+    cafe: "カフェ",
+    deli: "弁当・惣菜",
+    supermarket: "スーパー",
+    restaurant: "飲食店"
+  };
 }
 
 function renderLoadingList() {
@@ -404,9 +457,8 @@ function pickupLabels(types) {
 }
 
 function renderMarkers() {
-  const data = state.currentData;
-  if (!data) return;
-  const spots = [...data.safeSpots, ...data.cautionSpots];
+  if (!state.currentData) return;
+  const spots = filteredSpots(state.selectedTab);
 
   if (state.mapProvider === "google") {
     state.markers.forEach((marker) => marker.setMap(null));
