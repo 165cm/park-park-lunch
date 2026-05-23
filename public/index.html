@@ -64,7 +64,7 @@
                 <option value="5000">5km</option>
               </select>
             </label>
-            <button class="primary-button" type="submit">候補を更新</button>
+            <button class="primary-button" type="submit">この場所で探す</button>
           </form>
 
           <div class="notice">
@@ -74,18 +74,18 @@
           <section class="summary" aria-live="polite">
             <div>
               <span class="summary-number" id="safeCount">0</span>
-              <span>推奨候補</span>
+              <span>停めやすい候補</span>
             </div>
             <div>
               <span class="summary-number" id="cautionCount">0</span>
-              <span>注意候補</span>
+              <span>駐車未確認</span>
             </div>
           </section>
-          <div class="live-status" id="liveStatus">検索データ確認中</div>
+          <div class="live-status" id="liveStatus">周辺のお店と駐車場を確認中</div>
 
-          <div class="tabs" role="tablist" aria-label="候補タイプ">
-            <button id="safeTab" type="button" class="tab active" aria-selected="true">推奨</button>
-            <button id="cautionTab" type="button" class="tab" aria-selected="false">注意</button>
+          <div class="tabs" role="tablist" aria-label="検索結果の種類">
+            <button id="safeTab" type="button" class="tab active" aria-selected="true">停めやすい</button>
+            <button id="cautionTab" type="button" class="tab" aria-selected="false">駐車未確認</button>
           </div>
 
           <section id="spotList" class="spot-list" aria-label="ランチ候補"></section>

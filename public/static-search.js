@@ -84,7 +84,7 @@ function normalizeElements(elements) {
     if (tags.amenity === "parking") {
       parkingLots.push({
         id: `osm_${element.type}_${element.id}`,
-        name: tags.name || "OSM時間貸駐車場候補",
+        name: tags.name || "時間貸駐車場の可能性",
         location
       });
       continue;
@@ -126,12 +126,12 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
       ...restaurant,
       distanceFromQueryM,
       recommendedRank: "A",
-      rankLabel: "A: 非離車受取",
+      rankLabel: "車から受け取り",
       score: 95,
       confidence: 0.78,
       nearestParkingCandidate: {
         type: "not_required",
-        name: "車外に出ない受取候補",
+        name: "車から受け取れる可能性",
         walkingDistanceM: 0,
         availability: "店舗側対応要確認"
       },
@@ -145,7 +145,7 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
       ...restaurant,
       distanceFromQueryM,
       recommendedRank: "C",
-      rankLabel: "C: 近隣駐車場",
+      rankLabel: "近くに駐車場",
       score: 68 - lot.distanceM / 30,
       confidence: 0.62,
       nearestParkingCandidate: {
@@ -166,16 +166,16 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
       ...restaurant,
       distanceFromQueryM,
       recommendedRank: "C",
-      rankLabel: "C: 店舗駐車場タグ",
+      rankLabel: "店舗駐車場の可能性",
       score: 64,
       confidence: 0.58,
       nearestParkingCandidate: {
         type: "on_site_parking",
-        name: "店舗駐車場タグ候補",
+        name: "店舗駐車場の可能性",
         location: restaurant.location,
         walkingDistanceM: 0,
         availability: "未確認",
-        note: "OSM上の店舗駐車場タグに基づく候補です。現地で利用可否を確認してください。"
+        note: "地図データ上の駐車場情報です。現地で利用可否を確認してください。"
       },
       caution: REQUIRED_CAUTION
     };
@@ -185,11 +185,11 @@ function scoreRestaurant(restaurant, parkingLots, requestedLocation) {
     ...restaurant,
     distanceFromQueryM,
     recommendedRank: "CAUTION",
-    rankLabel: "注意候補",
+    rankLabel: "駐車未確認",
     score: 10,
     confidence: 0.35,
     nearestParkingCandidate: null,
-    caution: `${REQUIRED_CAUTION} 周辺にMVP基準内の駐車候補が見つからないため推奨リストから分離しています。`
+    caution: `${REQUIRED_CAUTION} 近くに使えそうな駐車場所が見つからないため、駐車未確認として分けています。`
   };
 }
 

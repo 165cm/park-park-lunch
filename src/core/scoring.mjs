@@ -1,10 +1,10 @@
 import { distanceMeters, roundMeters } from "./geo.mjs";
 
 const RANK_LABELS = {
-  A: "A: 非離車受取",
-  B: "B: 時間制限駐車区間",
-  C: "C: 近隣駐車場",
-  CAUTION: "注意候補"
+  A: "車から受け取り",
+  B: "パーキングメーター近く",
+  C: "近くに駐車場",
+  CAUTION: "駐車未確認"
 };
 
 const REQUIRED_CAUTION =
@@ -84,12 +84,12 @@ function buildParkingCandidate(candidate, type) {
     return {
       id: `${candidate.id}_parking_hint`,
       type,
-      name: "店舗駐車場タグ候補",
+        name: "店舗駐車場の可能性",
       location: candidate.location,
       walkingDistanceM: 0,
       activeWindow: null,
       availability: "未確認",
-      note: "OSM上の店舗駐車場タグに基づく候補です。実際の利用可否、台数、料金、入庫条件は現地で確認してください。"
+        note: "地図データ上の駐車場情報です。実際の利用可否、台数、料金、入庫条件は現地で確認してください。"
     };
   }
 
@@ -104,7 +104,7 @@ function buildParkingCandidate(candidate, type) {
     note:
       type === "parking_lot"
         ? "満空未確認。入庫前に現地表示と料金を確認してください。"
-        : "パーキング・メーター等の時間制限駐車区間候補です。現地の標識、枠、手数料を確認してください。"
+        : "パーキング・メーター等の時間制限駐車区間です。現地の標識、枠、手数料を確認してください。"
   };
 }
 
@@ -130,10 +130,10 @@ function scoreRestaurant(restaurant, context) {
       confidence: 0.86,
       nearestParkingCandidate: {
         type: "not_required",
-        name: "車外に出ない受取候補",
+        name: "車から受け取れる可能性",
         walkingDistanceM: 0,
         availability: "店舗側対応要確認",
-        note: "ドライブスルーまたはカーブサイド候補です。営業状況と受取手順は店舗側で確認してください。"
+        note: "ドライブスルーまたはカーブサイドの可能性があります。営業状況と受取手順は店舗側で確認してください。"
       },
       caution: REQUIRED_CAUTION
     };
@@ -184,7 +184,7 @@ function scoreRestaurant(restaurant, context) {
     score: 10,
     confidence: 0.35,
     nearestParkingCandidate: null,
-    caution: `${REQUIRED_CAUTION} 周辺にMVP基準内の駐車候補が見つからないため推奨リストから分離しています。`
+    caution: `${REQUIRED_CAUTION} 近くに使えそうな駐車場所が見つからないため、駐車未確認として分けています。`
   };
 }
 

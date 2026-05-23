@@ -236,7 +236,7 @@ async function updateSpots() {
   elements.safeCount.textContent = String(state.currentData.safeSpots.length);
   elements.cautionCount.textContent = String(state.currentData.cautionSpots.length);
   const liveStatus = state.currentData.liveDataStatus;
-  elements.liveStatus.textContent = liveStatus?.message ?? "検索データを取得しました。";
+  elements.liveStatus.textContent = liveStatus?.message ?? "周辺のお店と駐車場を取得しました。";
   elements.liveStatus.classList.toggle("active", Boolean(liveStatus?.used));
   renderList();
   renderMarkers();
@@ -257,7 +257,7 @@ function renderList() {
   const spots = state.selectedTab === "safe" ? data.safeSpots : data.cautionSpots;
 
   if (!spots.length) {
-    elements.spotList.innerHTML = `<div class="empty">該当候補がありません</div>`;
+    elements.spotList.innerHTML = `<div class="empty">この条件で表示できるお店がありません</div>`;
     return;
   }
 
@@ -271,7 +271,7 @@ function spotCard(spot) {
   const parking = spot.nearestParkingCandidate;
   const parkingText = parking
     ? `${parking.name} / 徒歩${parking.walkingDistanceM}m / ${parking.availability}`
-    : "MVP基準内の駐車候補なし";
+    : "近くの駐車場所は未確認";
   const mapsTarget = parking?.location ?? spot.location;
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsTarget.lat},${mapsTarget.lng}`;
   const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${spot.location.lat},${spot.location.lng}`;
@@ -289,9 +289,9 @@ function spotCard(spot) {
       <p>${escapeHtml(parkingText)}</p>
       <p>${escapeHtml(spot.caution)}</p>
       <div class="spot-actions">
-        <button type="button" data-focus-spot="${spot.id}">地図で表示</button>
-        <a href="${streetViewUrl}" target="_blank" rel="noreferrer">店舗前</a>
-        <a href="${mapsUrl}" target="_blank" rel="noreferrer">ナビへ</a>
+        <button type="button" data-focus-spot="${spot.id}">地図</button>
+        <a href="${streetViewUrl}" target="_blank" rel="noreferrer">店前確認</a>
+        <a href="${mapsUrl}" target="_blank" rel="noreferrer">行き先</a>
       </div>
     </article>
   `;
