@@ -52,6 +52,8 @@ function buildParkingOnlyQuery({ lat, lng, radiusM }) {
     (
       node(around:${radius},${lat},${lng})["amenity"="parking"];
       way(around:${radius},${lat},${lng})["amenity"="parking"];
+      node(around:${radius},${lat},${lng})["parking"~"yes|customers|surface|underground|multi-storey"];
+      way(around:${radius},${lat},${lng})["parking"~"yes|customers|surface|underground|multi-storey"];
     );
     out center tags 80;
   `;
@@ -94,13 +96,13 @@ function normalizeElements(elements) {
     const location = pointFromElement(element);
     if (!location) continue;
 
-    if (tags.amenity === "parking") {
+    if (tags.amenity === "parking" || parkingHints(tags).includes("on_site")) {
       parkingLots.push({
         id: `osm_${element.type}_${element.id}`,
-        name: tags.name || "時間貸駐車場の可能性",
+        name: tags.name || (tags.amenity === "parking" ? "時間貸駐車場の可能性" : "店舗駐車場の可能性"),
         location
       });
-      continue;
+      if (tags.amenity === "parking") continue;
     }
 
     restaurants.push({

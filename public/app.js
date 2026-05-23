@@ -1,9 +1,11 @@
 import { clearStaticLunchSpotCache, fetchOsmParkingLots, fetchStaticLunchSpots } from "./static-search.js?v=4";
 
 const DEFAULT_LOCATION = { lat: 35.681236, lng: 139.767125 };
-const DATA_VERSION = "2026-05-24-google-places-new-1";
+const DATA_VERSION = "2026-05-24-parking-focused-chains-1";
 const REQUIRED_CAUTION =
   "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
+const PARKING_FOCUSED_CHAIN_PATTERN =
+  /(セブン|7-?eleven|ファミリーマート|familymart|ローソン|lawson|ミニストップ|ministop|デイリーヤマザキ|daily yamazaki|ポプラ|すき家|sukiya|吉野家|yoshinoya|松屋|matsuya|マクドナルド|mcdonald|ケンタッキー|kfc|モスバーガー|mos burger|バーガーキング|burger king|ほっともっと|hotto motto|オリジン|origin|ガスト|gusto|ジョナサン|jonathan|デニーズ|denny|サイゼリヤ|saizeriya|ロイヤルホスト|royal host|くら寿司|kura sushi|スシロー|sushiro|はま寿司|hama sushi|イオン|aeon|イトーヨーカドー|york|西友|seiyu|ライフ|life|サミット|summit|オーケー|ok store|業務スーパー|肉のハナマサ)/i;
 const LOCATION_ALIASES = new Map([
   ["東京駅", DEFAULT_LOCATION],
   ["丸の内", { lat: 35.6811, lng: 139.7659 }],
@@ -399,7 +401,7 @@ async function fetchGoogleLunchSpots(query) {
     liveDataStatus: {
       provider: "google_places_osm_parking",
       used: true,
-      message: `Google Placesから店舗候補${restaurants.length}件、${parkingResult.message}`
+      message: `Google Placesから駐車向きチェーン候補${restaurants.length}件、${parkingResult.message}`
     },
     policyNotice: REQUIRED_CAUTION,
     dataSources: [
@@ -417,6 +419,7 @@ async function fetchGooglePlacesRestaurants(query) {
   const deduped = new Map();
   for (const place of results) {
     if (!place.id || !place.location || place.businessStatus === "CLOSED_PERMANENTLY") continue;
+    if (!isParkingFocusedGooglePlace(place)) continue;
     deduped.set(place.id, place);
   }
   return [...deduped.values()].map(toGoogleRestaurant).slice(0, 40);
@@ -455,11 +458,22 @@ function googlePlaceSearchTypes(genre) {
     convenience: ["convenience_store"],
     fast_food: ["meal_takeaway"],
     cafe: ["cafe"],
-    deli: ["bakery"],
+    deli: ["meal_takeaway", "bakery"],
     supermarket: ["supermarket"],
     restaurant: ["restaurant"]
   };
-  return byGenre[genre] ?? ["restaurant", "cafe", "meal_takeaway", "convenience_store", "bakery", "supermarket"];
+  return byGenre[genre] ?? ["convenience_store", "meal_takeaway", "supermarket", "restaurant"];
+}
+
+function isParkingFocusedGooglePlace(place) {
+  const name = place.displayName?.text ?? "";
+  const types = place.types ?? [];
+  if (types.includes("supermarket")) return true;
+  if (types.includes("convenience_store")) return PARKING_FOCUSED_CHAIN_PATTERN.test(name);
+  if (types.includes("meal_takeaway") || types.includes("restaurant") || types.includes("cafe") || types.includes("bakery")) {
+    return PARKING_FOCUSED_CHAIN_PATTERN.test(name);
+  }
+  return false;
 }
 
 function toGoogleRestaurant(place) {
@@ -472,11 +486,19 @@ function toGoogleRestaurant(place) {
     category: googleCategory(types),
     location,
     pickupTypes: googlePickupTypes(types),
-    parkingHints: [],
+    parkingHints: vehicleFriendlyParkingHints(place),
     estimatedStayMinutes: types.includes("convenience_store") || types.includes("meal_takeaway") ? 10 : 18,
     dataSources: ["google_places"],
-    sourceNote: "Google Placesの店舗候補です。営業状況と受取方法は店舗側で確認してください。"
+    sourceNote: "Google Placesから駐車場付きの可能性があるチェーン・テイクアウト候補に絞っています。営業状況と駐車可否は現地で確認してください。"
   };
+}
+
+function vehicleFriendlyParkingHints(place) {
+  const types = place.types ?? [];
+  const name = place.displayName?.text ?? "";
+  if (types.includes("supermarket")) return ["chain_parking_possible"];
+  if (PARKING_FOCUSED_CHAIN_PATTERN.test(name)) return ["chain_parking_possible"];
+  return [];
 }
 
 function googleCategory(types) {
@@ -498,7 +520,7 @@ function googlePickupTypes(types) {
 function scoreRestaurantWithParking(restaurant, parkingLots, requestedLocation) {
   const distanceFromQueryM = Math.round(distanceMeters(requestedLocation, restaurant.location));
   const distancePenalty = recommendationDistancePenalty(distanceFromQueryM);
-  const lot = nearestParking(parkingLots, restaurant, 150);
+  const lot = nearestParking(parkingLots, restaurant, 260);
 
   if (restaurant.pickupTypes.includes("drive_through") || restaurant.pickupTypes.includes("curbside_pickup")) {
     return {
@@ -524,8 +546,8 @@ function scoreRestaurantWithParking(restaurant, parkingLots, requestedLocation) 
       distanceFromQueryM,
       recommendedRank: "C",
       rankLabel: "近くに駐車場",
-      score: 68 - lot.distanceM / 30 - distancePenalty,
-      confidence: 0.7,
+      score: 92 - lot.distanceM / 10 - distancePenalty * 0.35,
+      confidence: lot.distanceM <= 80 ? 0.78 : 0.68,
       nearestParkingCandidate: {
         id: lot.id,
         type: "parking_lot",
@@ -534,6 +556,19 @@ function scoreRestaurantWithParking(restaurant, parkingLots, requestedLocation) 
         walkingDistanceM: Math.round(lot.distanceM),
         availability: "未確認"
       },
+      caution: REQUIRED_CAUTION
+    };
+  }
+
+  if ((restaurant.parkingHints ?? []).includes("chain_parking_possible")) {
+    return {
+      ...restaurant,
+      distanceFromQueryM,
+      recommendedRank: "CAUTION",
+      rankLabel: "駐車場要確認",
+      score: 38 - distancePenalty * 0.5,
+      confidence: 0.48,
+      nearestParkingCandidate: null,
       caution: REQUIRED_CAUTION
     };
   }
