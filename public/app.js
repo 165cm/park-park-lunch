@@ -14,12 +14,13 @@ const LOCATION_ALIASES = new Map([
 const state = {
   location: DEFAULT_LOCATION,
   selectedTab: "safe",
-  tapMode: false,
   mapProvider: "google",
   map: null,
   markers: [],
   currentData: null,
-  infoWindow: null
+  infoWindow: null,
+  geocoder: null,
+  requestId: 0
 };
 
 const elements = {
@@ -29,7 +30,7 @@ const elements = {
   timeInput: document.querySelector("#timeInput"),
   radiusInput: document.querySelector("#radiusInput"),
   locateButton: document.querySelector("#locateButton"),
-  tapModeButton: document.querySelector("#tapModeButton"),
+  searchButton: document.querySelector("#searchButton"),
   safeTab: document.querySelector("#safeTab"),
   cautionTab: document.querySelector("#cautionTab"),
   spotList: document.querySelector("#spotList"),
@@ -123,10 +124,6 @@ function initGoogleMap() {
     clickableIcons: true
   });
   state.infoWindow = new google.maps.InfoWindow();
-  state.map.addListener("click", (event) => {
-    if (!state.tapMode || !event.latLng) return;
-    setLocation({ lat: event.latLng.lat(), lng: event.latLng.lng() });
-  });
   elements.mapCredit.textContent = "Google Maps / OSMライブ検索";
 }
 
@@ -155,15 +152,28 @@ function showMapError(title, message) {
 }
 
 function bindEvents() {
-  elements.form.addEventListener("submit", (event) => {
+  elements.form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const parsed = parseLocationInput(elements.locationInput.value);
-    if (parsed) setLocation(parsed, false);
+    const typedLocation = elements.locationInput.value.trim();
+    if (typedLocation) {
+      setStatus("入力された場所を確認中です…", "loading");
+      const resolved = await resolveLocationInput(typedLocation);
+      if (!resolved) {
+        setStatus("場所が見つかりませんでした。駅名・住所、または「35.681,139.767」の形式で入力してください。", "error");
+        elements.locationInput.focus();
+        return;
+      }
+      setLocation(resolved, false, { refresh: false });
+    }
     updateSpots();
   });
 
   elements.locateButton.addEventListener("click", () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setStatus("このブラウザでは現在地を取得できません。駅名・住所で検索してください。", "error");
+      return;
+    }
+    setStatus("現在地を確認中です…", "loading");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocation({
@@ -172,19 +182,21 @@ function bindEvents() {
         });
       },
       () => {
+        setStatus("現在地を取得できませんでした。駅名・住所で検索してください。", "error");
         elements.locationInput.focus();
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
   });
 
-  elements.tapModeButton.addEventListener("click", () => {
-    state.tapMode = !state.tapMode;
-    elements.tapModeButton.setAttribute("aria-pressed", String(state.tapMode));
-  });
-
   elements.safeTab.addEventListener("click", () => switchTab("safe"));
   elements.cautionTab.addEventListener("click", () => switchTab("caution"));
+}
+
+async function resolveLocationInput(value) {
+  const parsed = parseLocationInput(value);
+  if (parsed) return parsed;
+  return geocodeAddress(value);
 }
 
 function parseLocationInput(value) {
@@ -201,17 +213,56 @@ function parseLocationInput(value) {
   return { lat, lng };
 }
 
-function setLocation(location, updateInput = true) {
+async function geocodeAddress(address) {
+  if (!window.google?.maps) return null;
+  if (!state.geocoder) {
+    if (!google.maps.Geocoder && google.maps.importLibrary) {
+      const { Geocoder } = await google.maps.importLibrary("geocoding");
+      state.geocoder = new Geocoder();
+    } else if (google.maps.Geocoder) {
+      state.geocoder = new google.maps.Geocoder();
+    }
+  }
+  if (!state.geocoder) return null;
+  const tokyoBounds = new google.maps.LatLngBounds(
+    new google.maps.LatLng(35.45, 139.45),
+    new google.maps.LatLng(35.9, 140.05)
+  );
+  return new Promise((resolve) => {
+    state.geocoder.geocode(
+      {
+        address,
+        bounds: tokyoBounds,
+        componentRestrictions: { country: "JP" },
+        region: "JP"
+      },
+      (results, status) => {
+        if (status !== "OK" || !results?.[0]?.geometry?.location) {
+          resolve(null);
+          return;
+        }
+        const location = results[0].geometry.location;
+        resolve({ lat: location.lat(), lng: location.lng() });
+      }
+    );
+  });
+}
+
+function setLocation(location, updateInput = true, options = {}) {
   state.location = location;
   if (updateInput) elements.locationInput.value = `${location.lat.toFixed(6)},${location.lng.toFixed(6)}`;
   if (state.mapProvider === "google") {
     state.map.setCenter(location);
     state.map.setZoom(Math.max(state.map.getZoom(), 14));
   }
-  updateSpots();
+  if (options.refresh !== false) updateSpots();
 }
 
 async function updateSpots() {
+  const requestId = ++state.requestId;
+  setLoading(true, "周辺の飲食・テイクアウト候補と駐車候補を検索中です…");
+  renderLoadingList();
+
   const params = new URLSearchParams({
     lat: String(state.location.lat),
     lng: String(state.location.lng),
@@ -225,21 +276,60 @@ async function updateSpots() {
     if (!response.ok) throw new Error(`API ${response.status}`);
     state.currentData = await response.json();
   } catch {
-    state.currentData = await fetchStaticLunchSpots({
+    try {
+      state.currentData = await fetchStaticLunchSpots({
+        lat: state.location.lat,
+        lng: state.location.lng,
+        radiusM: Number.parseInt(elements.radiusInput.value, 10),
+        vehicleType: elements.vehicleType.value,
+        time: elements.timeInput.value
+      });
+    } catch {
+      state.currentData = emptyResult();
+    }
+  }
+  if (requestId !== state.requestId) return;
+
+  elements.safeCount.textContent = String(state.currentData.safeSpots.length);
+  elements.cautionCount.textContent = String(state.currentData.cautionSpots.length);
+  const liveStatus = state.currentData.liveDataStatus;
+  setStatus(liveStatus?.message ?? "周辺のお店と駐車場を取得しました。", liveStatus?.used ? "active" : "error");
+  setLoading(false);
+  renderList();
+  renderMarkers();
+}
+
+function emptyResult() {
+  return {
+    query: {
       lat: state.location.lat,
       lng: state.location.lng,
       radiusM: Number.parseInt(elements.radiusInput.value, 10),
       vehicleType: elements.vehicleType.value,
       time: elements.timeInput.value
-    });
-  }
-  elements.safeCount.textContent = String(state.currentData.safeSpots.length);
-  elements.cautionCount.textContent = String(state.currentData.cautionSpots.length);
-  const liveStatus = state.currentData.liveDataStatus;
-  elements.liveStatus.textContent = liveStatus?.message ?? "周辺のお店と駐車場を取得しました。";
-  elements.liveStatus.classList.toggle("active", Boolean(liveStatus?.used));
-  renderList();
-  renderMarkers();
+    },
+    generatedAt: new Date().toISOString(),
+    liveDataStatus: {
+      used: false,
+      message: "検索先が混み合っています。少し時間を置いてもう一度お試しください。"
+    },
+    safeSpots: [],
+    cautionSpots: []
+  };
+}
+
+function setLoading(isLoading, message) {
+  elements.form.classList.toggle("is-loading", isLoading);
+  elements.searchButton.disabled = isLoading;
+  elements.locateButton.disabled = isLoading;
+  if (message) setStatus(message, "loading");
+}
+
+function setStatus(message, mode = "active") {
+  elements.liveStatus.textContent = message;
+  elements.liveStatus.classList.toggle("active", mode === "active");
+  elements.liveStatus.classList.toggle("loading", mode === "loading");
+  elements.liveStatus.classList.toggle("error", mode === "error");
 }
 
 function switchTab(tab) {
@@ -262,34 +352,43 @@ function renderList() {
   }
 
   elements.spotList.innerHTML = spots.map((spot) => spotCard(spot)).join("");
-  elements.spotList.querySelectorAll("[data-focus-spot]").forEach((button) => {
-    button.addEventListener("click", () => focusSpot(button.dataset.focusSpot));
-  });
 }
 
 function spotCard(spot) {
   const parking = spot.nearestParkingCandidate;
-  const parkingText = parking
-    ? `${parking.name} / 徒歩${parking.walkingDistanceM}m / ${parking.availability}`
-    : "近くの駐車場所は未確認";
   const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${spot.location.lat},${spot.location.lng}`;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${spot.location.lat},${spot.location.lng}`;
   const pickupText = pickupLabels(spot.pickupTypes);
+  const parkingText = parking
+    ? `🅿️ 徒歩${parking.walkingDistanceM}m ${parking.availability}`
+    : "❔ 駐車未確認";
+  const showParkingText = Boolean(parking) || spot.recommendedRank !== "CAUTION";
 
   return `
     <article class="spot-card rank-${spot.recommendedRank}">
       <h2>${escapeHtml(spot.name)}</h2>
       <div class="spot-meta">
         <span class="badge">${escapeHtml(spot.rankLabel)}</span>
-        <span class="badge">${spot.distanceFromQueryM}m</span>
+        <span class="badge distance">📍 ${spot.distanceFromQueryM}m</span>
         <span class="badge warning">信頼度 ${Math.round(spot.confidence * 100)}%</span>
       </div>
-      <p>${escapeHtml(pickupText)}</p>
-      <p>${escapeHtml(parkingText)}</p>
+      <div class="spot-quick-info">
+        <span>🥡 ${escapeHtml(pickupText)}</span>
+        ${showParkingText ? `<span>${escapeHtml(parkingText)}</span>` : ""}
+      </div>
       <div class="spot-actions">
-        <button type="button" data-focus-spot="${spot.id}">Google Map</button>
+        <a href="${mapUrl}" target="_blank" rel="noreferrer">Google Map</a>
         <a href="${streetViewUrl}" target="_blank" rel="noreferrer">店前を確認</a>
       </div>
     </article>
+  `;
+}
+
+function renderLoadingList() {
+  elements.spotList.innerHTML = `
+    <div class="loading-card"></div>
+    <div class="loading-card"></div>
+    <div class="loading-card"></div>
   `;
 }
 
