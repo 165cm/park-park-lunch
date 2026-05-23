@@ -396,6 +396,31 @@ select {
   line-height: 1.35;
 }
 
+.spot-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.spot-title h2 {
+  min-width: 0;
+}
+
+.genre-label {
+  flex: 0 0 auto;
+  display: inline-grid;
+  min-height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 8px;
+  background: #eef2f0;
+  color: #41504c;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .spot-meta {
   display: flex;
   flex-wrap: wrap;
@@ -438,11 +463,6 @@ select {
 .badge.warning {
   background: #fff0d4;
   color: #7a4600;
-}
-
-.badge.neutral {
-  background: #eef2f0;
-  color: #41504c;
 }
 
 .rank-CAUTION .badge.warning {

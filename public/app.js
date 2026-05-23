@@ -119,6 +119,10 @@ function initGoogleMap() {
   state.map = new google.maps.Map(elements.map, {
     center: state.location,
     zoom: 14,
+    zoomControl: true,
+    zoomControlOptions: {
+      position: google.maps.ControlPosition.RIGHT_BOTTOM
+    },
     mapTypeControl: false,
     streetViewControl: false,
     fullscreenControl: false,
@@ -391,8 +395,8 @@ function renderList() {
 
 function spotCard(spot) {
   const parking = spot.nearestParkingCandidate;
-  const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${spot.location.lat},${spot.location.lng}`;
-  const mapUrl = googleMapsPlaceSearchUrl(spot);
+  const mapUrl = googleMapsPointUrl(spot.location);
+  const streetViewUrl = googleMapsStreetViewUrl(spot.location);
   const pickupText = pickupLabels(spot.pickupTypes);
   const genreText = genreLabels()[spotGenre(spot)];
   const parkingText = parking
@@ -402,10 +406,12 @@ function spotCard(spot) {
 
   return `
     <article class="spot-card rank-${spot.recommendedRank}">
-      <h2>${escapeHtml(spot.name)}</h2>
+      <div class="spot-title">
+        <h2>${escapeHtml(spot.name)}</h2>
+        <span class="genre-label">${escapeHtml(genreText)}</span>
+      </div>
       <div class="spot-meta">
         <span class="badge">${escapeHtml(spot.rankLabel)}</span>
-        <span class="badge neutral">${escapeHtml(genreText)}</span>
         <span class="badge distance">📍 ${spot.distanceFromQueryM}m</span>
         <span class="badge warning">信頼度 ${Math.round(spot.confidence * 100)}%</span>
       </div>
@@ -421,9 +427,12 @@ function spotCard(spot) {
   `;
 }
 
-function googleMapsPlaceSearchUrl(spot) {
-  const query = `${spot.name} ${spot.location.lat},${spot.location.lng}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+function googleMapsPointUrl(location) {
+  return `https://www.google.com/maps/@${location.lat},${location.lng},18z`;
+}
+
+function googleMapsStreetViewUrl(location) {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${location.lat},${location.lng}`;
 }
 
 function genreLabels() {
