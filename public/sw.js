@@ -1,12 +1,12 @@
-const CACHE_NAME = "park-park-lunch-v9";
+const CACHE_NAME = "park-park-lunch-v10";
 const APP_SHELL = [
-  "/",
-  "/styles.css?v=2",
-  "/config.js?v=1",
-  "/static-search.js?v=1",
-  "/app.js?v=9",
-  "/manifest.webmanifest",
-  "/icon.svg"
+  "./",
+  "styles.css?v=2",
+  "config.js?v=1",
+  "static-search.js?v=1",
+  "app.js?v=10",
+  "manifest.webmanifest",
+  "icon.svg"
 ];
 
 self.addEventListener("install", (event) => {

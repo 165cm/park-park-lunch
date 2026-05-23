@@ -2,13 +2,13 @@
   "name": "Park Park Lunch",
   "short_name": "ParkLunch",
   "description": "東京23区の業務ドライバー向けランチMAP MVP",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#f7f8f5",
   "theme_color": "#14362f",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

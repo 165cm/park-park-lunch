@@ -75,7 +75,7 @@ async function initMap() {
 
 async function loadConfig() {
   try {
-    const response = await fetch("/api/config");
+    const response = await fetch("api/config");
     if (response.ok) return await response.json();
   } catch {
   }
@@ -221,7 +221,7 @@ async function updateSpots() {
   });
 
   try {
-    const response = await fetch(`/api/lunch-spots?${params}`);
+    const response = await fetch(`api/lunch-spots?${params}`);
     if (!response.ok) throw new Error(`API ${response.status}`);
     state.currentData = await response.json();
   } catch {
@@ -395,7 +395,7 @@ function registerServiceWorker() {
     });
     return;
   }
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
 function escapeHtml(value) {
