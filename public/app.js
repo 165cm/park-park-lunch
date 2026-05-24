@@ -1,7 +1,7 @@
-import { clearStaticLunchSpotCache, fetchOsmParkingLots, fetchStaticLunchSpots } from "./static-search.js?v=4";
+import { clearStaticLunchSpotCache, fetchOsmParkingLots } from "./static-search.js?v=4";
 
 const DEFAULT_LOCATION = { lat: 35.681236, lng: 139.767125 };
-const DATA_VERSION = "2026-05-24-strict-parking-safe-1";
+const DATA_VERSION = "2026-05-24-chain-only-1";
 const REQUIRED_CAUTION =
   "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
 const PARKING_FOCUSED_CHAIN_PATTERN =
@@ -360,17 +360,7 @@ async function updateSpots() {
       time: elements.timeInput.value
     });
   } catch {
-    try {
-      state.currentData = await fetchStaticLunchSpots({
-        lat: state.location.lat,
-        lng: state.location.lng,
-        radiusM: Number.parseInt(elements.radiusInput.value, 10),
-        vehicleType: elements.vehicleType.value,
-        time: elements.timeInput.value
-      });
-    } catch {
-      state.currentData = emptyResult();
-    }
+    state.currentData = emptyResult();
   }
   if (requestId !== state.requestId) return;
 
@@ -431,21 +421,15 @@ async function fetchGooglePlacesRestaurants(query) {
   }
   const validPlaces = [...deduped.values()];
   const focusedPlaces = validPlaces.filter(isParkingFocusedGooglePlace);
-  const usedFallback = focusedPlaces.length === 0 && validPlaces.length > 0;
-  const selectedPlaces = usedFallback ? validPlaces : focusedPlaces;
   return {
     rawCount: validPlaces.length,
     focusedCount: focusedPlaces.length,
-    usedFallback,
-    restaurants: selectedPlaces.map((place) => toGoogleRestaurant(place, { usedFallback })).slice(0, 40)
+    restaurants: focusedPlaces.map((place) => toGoogleRestaurant(place)).slice(0, 40)
   };
 }
 
 function googlePlacesStatusMessage(googleResult, parkingResult) {
-  if (googleResult.usedFallback) {
-    return `駐車向きチェーン候補が少ないため、Google Placesの周辺確認候補${googleResult.restaurants.length}件を表示します。${parkingResult.message}`;
-  }
-  return `Google Placesから駐車向きチェーン候補${googleResult.restaurants.length}件、${parkingResult.message}`;
+  return `Google Placesからコンビニ・スーパー・チェーン候補${googleResult.restaurants.length}件、${parkingResult.message}`;
 }
 
 async function nearbySearchNew(query, includedTypes) {
@@ -499,7 +483,7 @@ function isParkingFocusedGooglePlace(place) {
   return false;
 }
 
-function toGoogleRestaurant(place, options = {}) {
+function toGoogleRestaurant(place) {
   const location = { lat: place.location.latitude, lng: place.location.longitude };
   const types = place.types ?? [];
   return {
@@ -512,9 +496,7 @@ function toGoogleRestaurant(place, options = {}) {
     parkingHints: vehicleFriendlyParkingHints(place),
     estimatedStayMinutes: types.includes("convenience_store") || types.includes("meal_takeaway") ? 10 : 18,
     dataSources: ["google_places"],
-    sourceNote: options.usedFallback
-      ? "駐車向きチェーン候補が少ないため、周辺の確認候補として表示しています。道路状況と駐車可否を必ず現地で確認してください。"
-      : "Google Placesから駐車場付きの可能性があるチェーン・テイクアウト候補に絞っています。営業状況と駐車可否は現地で確認してください。"
+    sourceNote: "Google Placesからコンビニ・スーパー・チェーン店だけに絞っています。営業状況と駐車可否は現地で確認してください。"
   };
 }
 
