@@ -82,10 +82,9 @@
                   <label class="option-chip"><input type="radio" name="genreChoice" value="all" checked />すべて</label>
                   <label class="option-chip"><input type="radio" name="genreChoice" value="convenience" />コンビニ</label>
                   <label class="option-chip"><input type="radio" name="genreChoice" value="fast_food" />ファストフード</label>
-                  <label class="option-chip"><input type="radio" name="genreChoice" value="cafe" />カフェ</label>
-                  <label class="option-chip"><input type="radio" name="genreChoice" value="deli" />弁当・惣菜</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="beef_bowl" />牛丼・定食</label>
+                  <label class="option-chip"><input type="radio" name="genreChoice" value="deli" />弁当</label>
                   <label class="option-chip"><input type="radio" name="genreChoice" value="supermarket" />スーパー</label>
-                  <label class="option-chip"><input type="radio" name="genreChoice" value="restaurant" />飲食店</label>
                 </div>
               </div>
             </div>
@@ -93,17 +92,17 @@
           </form>
 
           <div class="notice">
-            ⚠️ 現地標識確認必須。本アプリは駐車許可を保証しません。🅿️ は近くの駐車候補、❔ は駐車未確認です。
+            ⚠️ 現地標識確認必須。本アプリは駐車許可を保証しません。🅿️ は店舗駐車場タグあり、❔ は店舗駐車場未確認です。
           </div>
 
           <div class="live-status" id="liveStatus" aria-live="polite">条件を設定して「この場所で探す」を押してください。</div>
 
           <div class="tabs" role="tablist" aria-label="検索結果の種類">
             <button id="safeTab" type="button" class="tab tab-safe active" aria-selected="true">
-              停めやすい <span id="safeCount" class="tab-count">0</span>
+              店舗駐車場あり <span id="safeCount" class="tab-count">0</span>
             </button>
             <button id="cautionTab" type="button" class="tab tab-caution" aria-selected="false">
-              駐車未確認 <span id="cautionCount" class="tab-count">0</span>
+              駐車場未確認 <span id="cautionCount" class="tab-count">0</span>
             </button>
           </div>
 
@@ -121,6 +120,6 @@
     </div>
 
     <script src="config.js?v=1"></script>
-    <script type="module" src="app.js?v=30"></script>
+    <script type="module" src="app.js?v=31"></script>
   </body>
 </html>

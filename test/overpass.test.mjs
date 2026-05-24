@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fetchOverpassLunchData } from "../src/providers/overpass.mjs";
+import { clearStaticLunchSpotCache, fetchOsmStoreParkingHints } from "../public/static-search.js";
 
 test("Overpass provider normalizes restaurants and parking lots", async () => {
   const fakeFetch = async () => ({
@@ -38,4 +39,47 @@ test("Overpass provider normalizes restaurants and parking lots", async () => {
   assert.deepEqual(result.restaurants[0].pickupTypes, ["takeout"]);
   assert.deepEqual(result.restaurants[1].parkingHints, ["on_site"]);
   assert.equal(result.parkingLots[0].capacity, 12);
+});
+
+test("store parking hints only use parking tags on store POIs", async () => {
+  const originalFetch = globalThis.fetch;
+  clearStaticLunchSpotCache();
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      elements: [
+        {
+          type: "node",
+          id: 10,
+          lat: 35.1,
+          lon: 139.1,
+          tags: { amenity: "parking", name: "独立コインパーキング", parking: "surface" }
+        },
+        {
+          type: "node",
+          id: 11,
+          lat: 35.1002,
+          lon: 139.1002,
+          tags: { shop: "supermarket", name: "テストスーパー", parking: "customers" }
+        },
+        {
+          type: "node",
+          id: 12,
+          lat: 35.1004,
+          lon: 139.1004,
+          tags: { shop: "convenience", name: "駐車タグなしコンビニ" }
+        }
+      ]
+    })
+  });
+
+  try {
+    const result = await fetchOsmStoreParkingHints({ lat: 35.1, lng: 139.1, radiusM: 1000 });
+    assert.equal(result.storeParkingHints.length, 1);
+    assert.equal(result.storeParkingHints[0].name, "テストスーパー");
+    assert.equal(result.storeParkingHints[0].category, "supermarket");
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearStaticLunchSpotCache();
+  }
 });

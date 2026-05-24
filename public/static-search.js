@@ -1,7 +1,8 @@
 const OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter";
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map();
 const parkingCache = new Map();
+const storeParkingCache = new Map();
 const REQUIRED_CAUTION =
   "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
 
@@ -59,6 +60,28 @@ function buildParkingOnlyQuery({ lat, lng, radiusM }) {
   `;
 }
 
+function buildStoreParkingHintQuery({ lat, lng, radiusM }) {
+  const radius = Math.min(radiusM ?? 1500, 5000);
+  return `
+    [out:json][timeout:12];
+    (
+      node(around:${radius},${lat},${lng})["parking"]["shop"~"convenience|supermarket"];
+      way(around:${radius},${lat},${lng})["parking"]["shop"~"convenience|supermarket"];
+      relation(around:${radius},${lat},${lng})["parking"]["shop"~"convenience|supermarket"];
+      node(around:${radius},${lat},${lng})["parking"]["amenity"~"fast_food|restaurant|cafe"];
+      way(around:${radius},${lat},${lng})["parking"]["amenity"~"fast_food|restaurant|cafe"];
+      relation(around:${radius},${lat},${lng})["parking"]["amenity"~"fast_food|restaurant|cafe"];
+      node(around:${radius},${lat},${lng})["parking:condition"]["shop"~"convenience|supermarket"];
+      way(around:${radius},${lat},${lng})["parking:condition"]["shop"~"convenience|supermarket"];
+      relation(around:${radius},${lat},${lng})["parking:condition"]["shop"~"convenience|supermarket"];
+      node(around:${radius},${lat},${lng})["parking:condition"]["amenity"~"fast_food|restaurant|cafe"];
+      way(around:${radius},${lat},${lng})["parking:condition"]["amenity"~"fast_food|restaurant|cafe"];
+      relation(around:${radius},${lat},${lng})["parking:condition"]["amenity"~"fast_food|restaurant|cafe"];
+    );
+    out center tags 120;
+  `;
+}
+
 function pointFromElement(element) {
   const lat = element.lat ?? element.center?.lat;
   const lng = element.lon ?? element.center?.lon;
@@ -81,9 +104,19 @@ function pickupTypes(tags) {
   return [...new Set(types)];
 }
 
+function categoryFromTags(tags) {
+  if (tags.shop === "convenience") return "convenience";
+  if (tags.shop === "supermarket") return "supermarket";
+  if (tags.shop === "bakery" || tags.shop === "deli") return "deli";
+  if (tags.amenity === "fast_food") return "fast_food";
+  if (tags.amenity === "cafe") return "cafe";
+  return "restaurant";
+}
+
 function parkingHints(tags) {
   const hints = [];
   if (["yes", "customers", "surface", "underground", "multi-storey"].includes(tags.parking)) hints.push("on_site");
+  if (tags["parking:condition"]) hints.push("on_site");
   return hints;
 }
 
@@ -122,6 +155,27 @@ function normalizeElements(elements) {
     restaurants: restaurants.slice(0, 40),
     parkingLots: parkingLots.slice(0, 60)
   };
+}
+
+function normalizeStoreParkingHints(elements) {
+  const storeParkingHints = [];
+  for (const element of elements ?? []) {
+    const tags = element.tags ?? {};
+    const location = pointFromElement(element);
+    if (!location) continue;
+    if (!tags.shop && !["fast_food", "restaurant", "cafe"].includes(tags.amenity)) continue;
+    if (!parkingHints(tags).includes("on_site")) continue;
+    storeParkingHints.push({
+      id: `osm_store_parking_${element.type}_${element.id}`,
+      name: tags.name || tags.brand || "店舗駐車場タグ付き店舗",
+      brand: tags.brand || "",
+      category: categoryFromTags(tags),
+      location,
+      parkingTag: tags.parking || tags["parking:condition"] || "unknown",
+      source: "overpass_osm"
+    });
+  }
+  return storeParkingHints.slice(0, 120);
 }
 
 function nearestParking(parkingLots, restaurant, maxMeters) {
@@ -281,7 +335,30 @@ export async function fetchOsmParkingLots(query) {
   return value;
 }
 
+export async function fetchOsmStoreParkingHints(query) {
+  const key = `store-parking:${cacheKey(query)}`;
+  const cached = storeParkingCache.get(key);
+  if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) return cached.value;
+
+  const body = new URLSearchParams({ data: buildStoreParkingHintQuery(query) });
+  const response = await fetch(OVERPASS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body
+  });
+  if (!response.ok) throw new Error(`Overpass store parking API error ${response.status}`);
+
+  const storeParkingHints = normalizeStoreParkingHints((await response.json()).elements);
+  const value = {
+    storeParkingHints,
+    message: `OSMから店舗駐車場タグ${storeParkingHints.length}件を補助取得しました。`
+  };
+  storeParkingCache.set(key, { createdAt: Date.now(), value });
+  return value;
+}
+
 export function clearStaticLunchSpotCache() {
   cache.clear();
   parkingCache.clear();
+  storeParkingCache.clear();
 }
