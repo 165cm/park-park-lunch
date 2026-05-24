@@ -1,7 +1,7 @@
 import { clearStaticLunchSpotCache, fetchOsmParkingLots, fetchStaticLunchSpots } from "./static-search.js?v=4";
 
 const DEFAULT_LOCATION = { lat: 35.681236, lng: 139.767125 };
-const DATA_VERSION = "2026-05-24-parking-focused-chains-3";
+const DATA_VERSION = "2026-05-24-strict-parking-safe-1";
 const REQUIRED_CAUTION =
   "現地標識確認必須。本アプリは駐車許可を保証しません。車を離れる場合は推奨された駐車施設を利用してください。";
 const PARKING_FOCUSED_CHAIN_PATTERN =
@@ -547,6 +547,7 @@ function scoreRestaurantWithParking(restaurant, parkingLots, requestedLocation) 
   const distanceFromQueryM = Math.round(distanceMeters(requestedLocation, restaurant.location));
   const distancePenalty = recommendationDistancePenalty(distanceFromQueryM);
   const lot = nearestParking(parkingLots, restaurant, 260);
+  const isVehicleFocused = (restaurant.parkingHints ?? []).includes("chain_parking_possible");
 
   if (restaurant.pickupTypes.includes("drive_through") || restaurant.pickupTypes.includes("curbside_pickup")) {
     return {
@@ -566,14 +567,14 @@ function scoreRestaurantWithParking(restaurant, parkingLots, requestedLocation) 
     };
   }
 
-  if (lot) {
+  if (lot && isVehicleFocused && lot.distanceM <= 90) {
     return {
       ...restaurant,
       distanceFromQueryM,
       recommendedRank: "C",
-      rankLabel: "近くに駐車場",
-      score: 92 - lot.distanceM / 10 - distancePenalty * 0.35,
-      confidence: lot.distanceM <= 80 ? 0.78 : 0.68,
+      rankLabel: "駐車候補あり",
+      score: 88 - lot.distanceM / 8 - distancePenalty * 0.35,
+      confidence: lot.distanceM <= 40 ? 0.78 : 0.66,
       nearestParkingCandidate: {
         id: lot.id,
         type: "parking_lot",
@@ -586,15 +587,24 @@ function scoreRestaurantWithParking(restaurant, parkingLots, requestedLocation) 
     };
   }
 
-  if ((restaurant.parkingHints ?? []).includes("chain_parking_possible")) {
+  if (isVehicleFocused || lot) {
     return {
       ...restaurant,
       distanceFromQueryM,
       recommendedRank: "CAUTION",
-      rankLabel: "駐車場要確認",
-      score: 38 - distancePenalty * 0.5,
-      confidence: 0.48,
-      nearestParkingCandidate: null,
+      rankLabel: isVehicleFocused ? "駐車場要確認" : "近隣駐車場要確認",
+      score: (isVehicleFocused ? 38 : 24) - distancePenalty * 0.5 - (lot ? Math.min(10, lot.distanceM / 40) : 0),
+      confidence: isVehicleFocused ? 0.48 : 0.36,
+      nearestParkingCandidate: lot
+        ? {
+            id: lot.id,
+            type: "parking_lot",
+            name: lot.name,
+            location: lot.location,
+            walkingDistanceM: Math.round(lot.distanceM),
+            availability: "未確認"
+          }
+        : null,
       caution: REQUIRED_CAUTION
     };
   }
