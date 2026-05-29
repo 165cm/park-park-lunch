@@ -27,6 +27,8 @@ const LOCATION_ALIASES = new Map([
   ["芝浦", { lat: 35.6417, lng: 139.7579 }]
 ]);
 
+let pendingSearchAction = null;
+
 const state = {
   location: DEFAULT_LOCATION,
   selectedTab: "safe",
@@ -65,7 +67,12 @@ const elements = {
   driveLock: document.querySelector("#driveLock"),
   lockSpeed: document.querySelector("#lockSpeed"),
   map: document.querySelector("#map"),
-  mapCredit: document.querySelector("#mapCredit")
+  mapCredit: document.querySelector("#mapCredit"),
+  passwordGate: document.querySelector("#passwordGate"),
+  passwordForm: document.querySelector("#passwordForm"),
+  passwordInput: document.querySelector("#passwordInput"),
+  passwordSubmit: document.querySelector("#passwordSubmit"),
+  passwordError: document.querySelector("#passwordError")
 };
 
 async function init() {
@@ -206,20 +213,32 @@ function showMapError(title, message) {
 }
 
 function bindEvents() {
-  elements.form.addEventListener("submit", async (event) => {
+  elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
-    const typedLocation = elements.locationInput.value.trim();
-    if (typedLocation) {
-      setStatus("入力された場所を確認中です…", "loading");
-      const resolved = await resolveLocationInput(typedLocation);
-      if (!resolved) {
-        setStatus("場所が見つかりませんでした。駅名・住所、または「35.681,139.767」の形式で入力してください。", "error");
-        elements.locationInput.focus();
-        return;
-      }
-      setLocation(resolved, false, { refresh: false });
+    if (!isAuthed()) {
+      showPasswordGate(doSearch);
+      return;
     }
-    updateSpots();
+    doSearch();
+  });
+
+  elements.passwordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const input = elements.passwordInput.value;
+    elements.passwordSubmit.disabled = true;
+    const hash = await sha256Hex(input);
+    if (hash === window.PARK_PARK_LUNCH_CONFIG?.passwordHash) {
+      setAuthed();
+      hidePasswordGate();
+      const action = pendingSearchAction;
+      pendingSearchAction = null;
+      action?.();
+    } else {
+      elements.passwordError.textContent = "パスワードが正しくありません。";
+      elements.passwordInput.value = "";
+      elements.passwordInput.focus();
+      elements.passwordSubmit.disabled = false;
+    }
   });
 
   elements.locateButton.addEventListener("click", () => {
@@ -1044,6 +1063,47 @@ function escapeHtml(value) {
     };
     return entities[char];
   });
+}
+
+function isAuthed() {
+  if (!window.PARK_PARK_LUNCH_CONFIG?.passwordHash) return true;
+  try { return sessionStorage.getItem("ppl_authed") === "1"; } catch { return true; }
+}
+
+function setAuthed() {
+  try { sessionStorage.setItem("ppl_authed", "1"); } catch {}
+}
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function showPasswordGate(onSuccess) {
+  pendingSearchAction = onSuccess;
+  elements.passwordGate.classList.remove("hidden");
+  elements.passwordInput.value = "";
+  elements.passwordError.textContent = "";
+  elements.passwordInput.focus();
+}
+
+function hidePasswordGate() {
+  elements.passwordGate.classList.add("hidden");
+}
+
+async function doSearch() {
+  const typedLocation = elements.locationInput.value.trim();
+  if (typedLocation) {
+    setStatus("入力された場所を確認中です…", "loading");
+    const resolved = await resolveLocationInput(typedLocation);
+    if (!resolved) {
+      setStatus("場所が見つかりませんでした。駅名・住所、または「35.681,139.767」の形式で入力してください。", "error");
+      elements.locationInput.focus();
+      return;
+    }
+    setLocation(resolved, false, { refresh: false });
+  }
+  updateSpots();
 }
 
 init();
