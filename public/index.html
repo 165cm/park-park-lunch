@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#14362f" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="styles.css?v=11" />
+    <link rel="stylesheet" href="styles.css?v=12" />
     <title>Park Park Lunch</title>
   </head>
   <body>
@@ -110,6 +110,21 @@
         </aside>
       </main>
 
+      <div id="passwordGate" class="password-gate hidden" role="dialog" aria-modal="true" aria-labelledby="passwordGateTitle">
+        <div class="password-gate-panel">
+          <h2 id="passwordGateTitle">パスワードを入力してください</h2>
+          <p>このアプリのご利用にはパスワードが必要です。</p>
+          <form id="passwordForm" autocomplete="off">
+            <label>
+              パスワード
+              <input id="passwordInput" type="password" autocomplete="current-password" required />
+            </label>
+            <p id="passwordError" class="password-error" role="alert"></p>
+            <button id="passwordSubmit" type="submit" class="primary-button">確認</button>
+          </form>
+        </div>
+      </div>
+
       <div id="driveLock" class="drive-lock hidden" role="alertdialog" aria-modal="true">
         <div class="drive-lock-panel">
           <h2>走行中の操作を停止しています</h2>
@@ -120,6 +135,6 @@
     </div>
 
     <script src="config.js?v=1"></script>
-    <script type="module" src="app.js?v=31"></script>
+    <script type="module" src="app.js?v=32"></script>
   </body>
 </html>

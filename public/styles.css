@@ -784,3 +784,70 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Password gate */
+.password-gate {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 33, 31, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+
+.password-gate.hidden {
+  display: none;
+}
+
+.password-gate-panel {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 340px;
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+
+.password-gate-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: var(--green);
+}
+
+.password-gate-panel p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.password-gate-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.password-gate-panel input[type="password"] {
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.password-gate-panel input[type="password"]:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.password-error {
+  color: var(--red) !important;
+  font-size: 0.85rem !important;
+  min-height: 1.2em;
+  margin: 0 0 12px !important;
+}
+}

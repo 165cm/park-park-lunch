@@ -29,7 +29,8 @@ jobs:
         run: |
           cat > public/config.js <<'EOF'
           window.PARK_PARK_LUNCH_CONFIG = {
-            googleMapsApiKey: "${{ secrets.GOOGLE_MAPS_API_KEY }}"
+            googleMapsApiKey: "${{ secrets.GOOGLE_MAPS_API_KEY }}",
+            passwordHash: "${{ secrets.SITE_PASSWORD_HASH }}"
           };
           EOF
 
